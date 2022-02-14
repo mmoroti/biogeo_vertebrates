@@ -1,0 +1,1792 @@
+---
+title: "The relative role of equilibrium and non-equilibrium processes in shaping the species richness and functional diversity of terrestrial vertebrates in the Brazilian Atlantic Forest"
+author: "Matheus de Toledo Moroti, Fernando Rodrigues da Silva, Diogo B. Provete"
+date: "16/09/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+### Objetivo
+
+Testar como a **riqueza** de espécies e a **diversidade funcional** estão relacionadas com o tempo evolutivo, taxa de diversificação, produtividade, variáveis climáticas e heterogeneidade de relevo. 
+
+### Hipóteses
+
+Se mecanismos de **não equilíbrio** forem relativamente mais importantes para gerar diferenças na quantidade de espécies entre regiões, espero que **taxas de diversificação e tempo evolutivo estejam positivamente correlacionadas com a riqueza de espécies e diversidade funcional**. Por outro lado, se mecanismos de **equilíbrio** forem mais importantes, espero que **variáveis climáticas presentes, heterogemeodade de relevo e gradientes de produtividade estejam forte e positivamente relacionadas com riqueza de espécies e diversidade funcional**. Ainda, espero que esse efeito seja mais pronunciado em animais ectotérmicos do que em homeotérmicos.
+
+![](https://github.com/mmoroti/fdvertebrates/blob/main/001.jpg?raw=true){ width=80% }
+
+### Carregando pacotes  
+```{r loading packages, message = FALSE}
+library(tidyverse) #God of data science
+library(picante) # vegan package included
+library(FD) #ade4 package included
+library(visdat) #conferir ausência de dados
+library(sf) #spatial data
+library(rgdal) #spatial data
+library(sp) #spatial data
+library(letsR) #spatial data
+library(tmap) #maps
+library(piecewiseSEM) #Structural equation model
+library(nlme) # Model selection
+library(vegan) # Correlogramas de Moran
+library(car) #VIF
+library(ggrepel) #Plot PCoA - Trait
+library(cowplot) #plot figures
+library(phytools) #phylogenetic data
+library(geiger) #dff - functional disparity through the time
+```
+
+## Preparando e carregando os dados
+
+### Carregando delimitação Mata Atlântica
+Utilizamos o limite consensual proposto por Muylaert et al. 2018.
+```{r loading grid, message=FALSE}
+grid_ma <- readOGR("gridmacro.shp") #432 grids
+grid_ma <- st_as_sf(grid_ma)
+grid_ma <- st_set_crs(grid_ma, 4326)
+id <- grid_ma$id #identificação de cada célula
+```
+
+### Carregando composição de espécies de vertebrados
+
+Matriz de composição foi obtida ao sobrepor os poligonos de extensão de ocorrência com a grid, feito no pacote LetsR (Vilela and Villalobos, 2015). Os dados foram obtidos em diferentes conjuntos de dados disponíveis online e os .shp encontram-se disponíveis no material suplementar.
+
+```{r loading composition data}
+amphibia_full_list <- read.table("composition_amphibia.txt", h=T) #Vanconcelos et al. (2019);
+squamata_full_list <- read.table("composition_reptiles.txt", h=T) #Roll et al. (2017);
+birds_full_list <- read.table("composition_birds.txt", h=T) #BirdLife (2015); 
+mammals_full_list <- read.table("composition_mammals.txt", h=T) #IUCN  
+```
+
+### Carregando traits
+```{r loading traits data}
+amphibia_full_traits <- read.csv2("traits_amphibia.csv") 
+squamata_full_traits <- read.csv2("traits_squamatas.csv", sep=";")
+birds_full_traits <- read.csv2("traits_birds.csv", sep=";")
+mammals_full_traits <- read.csv2("traits_mammals.csv", sep=";")
+
+View(mammals_full_traits)
+```
+
+### Carregando filogenias
+```{r loading phylogeny data}
+amphibia_full_phy <- read.tree("phy_amphibia.tre") 
+squamata_full_phy <- read.tree("phy_squamata.tre")
+birds_full_phy <- read.tree("phy_birds.tre")
+mammals_full_phy <- read.nexus("https://raw.githubusercontent.com/n8upham/MamPhy_v1/master/_DATA/MamPhy_fullPosterior_BDvr_DNAonly_4098sp_topoFree_FBDasZhouEtAl_MCC_v2_target.tre") 
+```
+
+### Carregando dados abióticos
+Aqui vamos extrair os dados abióticos para o centróid da grid
+```{r}
+ #Determine centroids of grid cells 
+sq_grid <- readOGR("gridmacro.shp") 
+grid_center <- coordinates(sq_grid)
+nrow(grid_center)
+
+#Topografia
+#EarthEnv (https://www.earthenv.org/)
+topography <- raster("elevation_1KMmd_GMTEDmd.tif")
+plot(topography)
+crs(topography)
+
+data_topography <- raster::extract(topography,             
+                                   grid_center,   
+                                 fun=mean,     
+                                 df=TRUE)
+# Arrumando para o join com os dados abióticos
+data_topography <- cbind(id=sq_grid$id, data_topography)
+data_topography <- data_topography[,-2]
+
+hist(data_topography$elevation_1KMmd_GMTEDmd)
+
+# Produtividade primária
+# A produtividade primária líquida pode ser obtida no website do Numerical Terradynamic Simulation Group 
+prod <- raster("MOD17A2_GPP.A2015233.tif")
+plot(prod)
+crs(prod)
+
+data_prod <- raster::extract(prod,             
+                            grid_center,   
+                            fun=mean,     
+                            df=TRUE)
+data_prod <- cbind(data_prod, id=sq_grid$id)
+
+hist(data_prod$MOD17A2_GPP.A2015233)
+
+# Climate data from CHELSA
+Bio02 <- raster("CHELSA_bio10_2.tif") #Mean Diurnal Temperature Range
+Bio03 <- raster("CHELSA_bio10_3.tif") #Isothermality
+Bio04 <- raster("CHELSA_bio10_4.tif") #Temperature Seasonality
+Bio07 <- raster("CHELSA_bio10_7.tif") #Temperature Annual Range
+Bio11 <- raster("CHELSA_bio10_11.tif") #Mean Temperature of Coldest Quarter
+Bio15 <- raster("CHELSA_bio10_15.tif") #Precipitation Seasonality
+Bio17 <- raster("CHELSA_bio10_17.tif") #Precipitation of Driest Quarter
+
+#Extraindo dados climáticos
+data_extract2 <- raster::extract(Bio02,             
+                                 grid_center,   
+                                 fun=mean,     
+                                 df=TRUE) 
+
+data_extract3 <- raster::extract(Bio03,             
+                                 grid_center,    
+                                 fun=mean,     
+                                 df=TRUE)
+data_extract4 <- raster::extract(Bio04,             
+                                 grid_center,    
+                                 fun=mean,     
+                                 df=TRUE)
+data_extract7 <- raster::extract(Bio07,             
+                                 grid_center,    
+                                  fun=mean,     
+                                  df=TRUE)
+data_extract11 <- raster::extract(Bio11,             
+                                  grid_center,     
+                                 fun=mean,     
+                                 df=TRUE)
+data_extract15 <- raster::extract(Bio15,             
+                                  grid_center,     
+                                  fun=mean,     
+                                  df=TRUE) 
+data_extract17 <- raster::extract(Bio17,             
+                                  grid_center,     
+                                  fun=mean,     
+                                  df=TRUE)
+data_extract17$CHELSA_bio10_17
+
+#Unindo variáveis climáticas em um data.frame
+clima <- data.frame(id=sq_grid$id, 
+                    BIO02=data_extract2$CHELSA_bio10_2,
+                    BIO03=data_extract3$CHELSA_bio10_3, 
+                    BIO04=data_extract4$CHELSA_bio10_4, 
+                    BIO07=data_extract7$CHELSA_bio10_7, 
+                    BIO11=data_extract11$CHELSA_bio10_11,
+                    BIO15=data_extract15$CHELSA_bio10_15,
+                    BIO17=data_extract17$CHELSA_bio10_17)
+
+#Unindo dados abióticos em um data frame
+
+abiotic <- full_join(clima, data_prod, by="id")
+abiotic <- full_join(abiotic,data_topography, by="id")
+abiotic <- as.tibble(abiotic[,-9])
+
+data_abiotic <- rename(abiotic, Elevation = elevation_1KMmd_GMTEDmd, Productivity = MOD17A2_GPP.A2015233)
+names(data_abiotic)
+```
+
+## Data handling 
+
+###Anfíbios
+Ajustando os nomes da composição de espécies de acordo com a filogenia. 
+```{r}
+amphibia_list <- amphibia_full_list[ , order(names(amphibia_full_list))] #Ordem alfabética
+
+#Arrumando nomes
+names(amphibia_list) <- gsub("Scinax_x.signatus", "Scinax_x-signatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Scinax_v.signatus", "Scinax_v-signatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Brachycephalus_margariatus", "Brachycephalus_margaritatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Scinax_strigilata", "Scinax_strigilatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Pithecopus", "Phyllomedusa", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Ololygon", "Scinax", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Boana", "Hypsiboas", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Phyllomedusa_megacephalus", "Phyllomedusa_megacephala", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Phyllomedusa_nordestinus", "Phyllomedusa_nordestina", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Phyllomedusa_azureus", "Phyllomedusa_azurea", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Lithobates_palmipes", "Rana_palmipes", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Scinax_x.signatus", "Scinax_x-signatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Brachycephalus_margariatus", "Brachycephalus_margaritatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Aparasphenodon_ararapa", "Aparasphenodon_arapapa", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Agalychnis_aspera", "Hylomantis_aspera", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Physalaemus_nattereri", "Eupemphix_nattereri", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Agalychnis_granulosa", "Hylomantis_granulosa", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Scinax_v.signatus", "Scinax_v-signatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Scinax_strigilata", "Scinax_strigilatus", fixed=T, names(amphibia_list))
+```
+
+Ajustando os nomes dos traits de acordo com a filogenia. 
+```{r}
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp, "Boana_claresignata", "Bokermannohyla_claresignata")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp, "Boana_clepsydra", "Bokermannohyla_clepsydra")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Proceratophrys_salvatori", "Odontophrynus_salvatori")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Scinax_v_signatus", "Scinax_v-signatus")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Scinax_x_signatus", "Scinax_x-signatus")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Boana_bandeirantes", "Hypsiboas_bandeirantes")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Boana_poaju", "Hypsiboas_poaju")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Boana_paranaiba", "Hypsiboas_paranaiba")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Physalaemus_nattereri", "Eupemphix_nattereri")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Agalychnis_aspera", "Hylomantis_aspera")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Agalychnis_granulosa", "Hylomantis_granulosa")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Lithobates_palmipes", "Rana_palmipes")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Pithecopus_azureus", "Phyllomedusa_azurea")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Pithecopus_ayeaye", "Phyllomedusa_ayeaye")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Pithecopus_nordestinus", "Phyllomedusa_nordestina")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Pithecopus_rohdei", "Phyllomedusa_rohdei")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Pithecopus_rohdei", "Phyllomedusa_rohdei")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Aparasphenodon_ararapa", "Aparasphenodon_arapapa")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Ololygon_tripui", "Scinax_tripui")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Ololygon_cosenzai", "Scinax_cosenzai")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Ololygon_strigilata", "Scinax_strigilatus")
+amphibia_full_traits$sp<-str_replace_all(amphibia_full_traits$sp,"Pithecopus_hypochondrialis", "Phyllomedusa_hypochondrialis")
+amphibia_full_traits$sp<-str_replace_all(amphibia_full_traits$sp,"Pithecopus_megacephalus", "Phyllomedusa_megacephala")
+```
+
+Selecionando os traits de interesse e removendo os missing data.
+```{r}
+names(amphibia_full_traits)
+rem.col <- c("Litter_size_min_n","Litter_size_max_n","Reproductive_output_y", "area_km")
+
+short.amphibia.traits <- amphibia_full_traits[,!(names(amphibia_full_traits)%in% rem.col)]
+names(amphibia_full_traits)
+
+# Removendo missing data
+short.amphibia.traits <- remove_missing(short.amphibia.traits, vars=names(short.amphibia.traits))
+nrow(short.amphibia.traits) #494 espécies, 97 linhas excluídas
+```
+
+Precisamos remover as espécies que tem na lista, mas não estão presentes nos traits
+```{r}
+amphibia_sp <- amphibia_list  %>%
+  gather(key="sp",value="count", Adelophryne_pachydactyla:Zachaenus_parvulus) %>% distinct(sp, .keep_all = TRUE)
+nrow(amphibia_sp)#518 espécies (line 210 -ID col)
+
+remove.amp <- anti_join(amphibia_sp,short.amphibia.traits, by ="sp")
+nrow(remove.amp) #Perdemos 85 espécies na composição (~5%)
+
+#Retirando
+rem.col.list <- remove.amp$sp
+short.amphibia.list <- amphibia_list[,!(names(amphibia_list)%in% rem.col.list)]
+```
+
+Agora, precisamos remover as espécies que tem traits, mas não estão presentes na lista
+```{r}
+# Removendo espécie duplicada
+#Aplastodiscus_weygoldti aparecendo duas vezes
+short.amphibia.traits <- short.amphibia.traits[-c(33),] 
+
+#Espécies que estão sobrando nos traits
+amphibia_sp2 <- anti_join(short.amphibia.traits,amphibia_sp, by ="sp")
+
+# Retirando por condição dos vetores
+short.amphibia.traits <- short.amphibia.traits[!(short.amphibia.traits$sp %in% amphibia_sp2$sp), ]
+```
+
+Colocando em ordem alfabética e conferindo composição e traits
+```{r}
+#Ordem alfabética lista
+short.amphibia.list <- short.amphibia.list[ , order(names(short.amphibia.list))]
+
+#Ordem alfabética traits
+short.amphibia.traits <- short.amphibia.traits[order(short.amphibia.traits$sp),]
+
+ncol(short.amphibia.list) #434 espécies
+nrow(short.amphibia.traits) #434 espécies
+```
+
+Retirando espécies que estão na comunidade e nos traits, mas não estão na filogenia
+```{r}
+match.phylo.comm(amphibia_full_phy, short.amphibia.list)
+
+# Precisamos remover na lista e nos traits
+rem.col.phy <- c("Brachycephalus_sulfuratus", "Crossodactylus_fransciscanus","Crossodactylus_timbuhy","Dendropsophus_bromeliaceus","Eleutherodactylus_bilineatus","Melanophryniscus_milanoi","Melanophryniscus_xanthostomus","Proceratophrys_mantiqueira","Proceratophrys_pombali","Pseudopaludicola_atragula","Pseudopaludicola_pocoto","Scinax_strigilatus","Trachycephalus_typhonius")
+
+#Retirando na lista
+list.amphibia.phy <- short.amphibia.list[,!(names(short.amphibia.list)%in% rem.col.phy)]
+dim(list.amphibia.phy) #421 spp
+
+#Retirando nos traits
+traits.amphibia.phy <- short.amphibia.traits[!short.amphibia.traits$sp %in% rem.col.phy,]
+dim(traits.amphibia.phy) #421 spp
+``` 
+Cortar filogenia Jetz e Pyron, 2018 com a lista de espécies
+```{r}
+amphibia_phy <- prune.sample(list.amphibia.phy, amphibia_full_phy)
+``` 
+
+Filogenia, composição de espécies e traits de anfíbios prontas!
+```{r}
+amphibia_phy #421 tips
+ncol(list.amphibia.phy) #421 spp
+nrow(traits.amphibia.phy) #421 spp
+```
+
+### Squamata
+```{r handling data}
+squamata_full_list
+squamata_full_traits
+squamata_full_phy
+
+#Primeiro precisamos fazer alguns ajustes no dataset
+#Trocando . por _
+names(squamata_full_list) <- gsub(".", "_", fixed=T, names(squamata_full_list))
+#Transformando variável character em integer
+squamata_full_traits$Fossorial <- as.integer(as.character(squamata_full_traits$Fossorial))
+```
+
+Selecionando traits de interesse e removendo missing data
+```{r}
+# Traits 
+names(squamata_full_traits) 
+vis_miss(squamata_full_traits) #24.8% missing data. atributos reprodutivos são os mais ausentes.
+rem.col.rep <- c("litter_or_clutch_size_n","litters_or_clutches_per_y") #remover essas colunas
+short_squamata_traits <- squamata_full_traits[,!(names(squamata_full_traits)%in% rem.col.rep)]
+vis_miss(short_squamata_traits) #13.7%, melhorou!
+
+# Removendo missing data
+short_squamata_traits <- remove_missing(short_squamata_traits, vars=names(short_squamata_traits))
+vis_miss(short_squamata_traits) #0.0% - 135 spp saíram
+```
+
+Agora precisamos conferir quais espécies em nossa matriz de composição possuem dados de traits
+```{r}
+# Lista para join
+# Arrumando para linhas
+reptile_list <- squamata_full_list %>%
+  gather(key="sp",value="count", Acanthochelys_radiolata:Xenopholis_undulatus) %>% distinct(sp, .keep_all = TRUE)
+
+# Anti join: espécies que estão no x, mas não estão no y (x,y)
+reptiles_sp <- anti_join(reptile_list, short_squamata_traits, by="sp")
+
+#Retirando espécies que saíram nos traits
+rem.col.list <- reptiles_sp$sp
+
+short_squamata_list <- squamata_full_list[,!(names(squamata_full_list)%in% rem.col.list)]
+
+ncol(short_squamata_list) #262
+nrow(short_squamata_traits) #276
+```
+
+Conferindo espécies que estão sobrando nos traits 
+```{r}
+# Tirando o que está a mais nos traits
+
+reptiles_sp2 <- anti_join(short_squamata_traits, reptile_list, by="sp")
+
+# Retirando por condição dos vetores
+short_squamata_traits <- short_squamata_traits[!(short_squamata_traits$sp %in% reptiles_sp2$sp), ]
+
+ncol(short_squamata_list) #262sp - uma coluna a mais ID - 
+nrow(short_squamata_traits) #261spp
+
+#Ordem alfabética lista
+short_squamata_list <- short_squamata_list[ , order(names(short_squamata_list))]
+
+#Ordem alfabética traits
+short_squamata_traits <- short_squamata_traits[order(short_squamata_traits$sp),]
+```
+
+### Birds
+Conferindo e ajustando banco de dados 
+```{r}
+birds_full_list # 815 espécies composição original - 1ª coluna ID
+birds_full_phy # 716 tips
+birds_full_traits # 1082 spp
+
+#Trocando . por _ nos nomes
+names(birds_full_list) <- gsub(".", "_", fixed=T, names(birds_full_list))
+
+#Retirando coluna ID 
+birds_full_list <- birds_full_list[-c(1,0)]
+
+#Facilitando o trabalho, colocando em ordem alfabética
+birds_full_list <- birds_full_list[ , order(names(birds_full_list))]
+```
+
+Agora precisamos selecionar os traits de interesse e remover os missing data
+```{r}
+# Extrainto traits de interesse
+vis_miss(birds_full_traits) # 11.6% missing data
+library(visdat)
+# Vamos remover os dados de reprodução
+rem.col.bir <- c("litter_or_clutch_size_n","litters_or_clutches_per_y")
+
+birds_traits <- birds_full_traits[,!(names(birds_full_traits)%in% rem.col.bir)]
+names(birds_traits)
+
+# Retirando traits NA's
+short_birds_traits <- remove_missing(birds_traits, vars=names(birds_traits))
+
+nrow(short_birds_traits) # 952 spp aves
+``` 
+
+Agora precisamos conferir para quais espécies temos dados de traits
+```{r}
+#Conferindo quais espécies da lista possuem traits
+# Lista para join
+# Arrumando para linhas
+birds_list <- birds_full_list %>%
+  gather(key="sp",value="count", Accipiter_poliogaster:Zimmerius_acer) %>% distinct(sp, .keep_all = TRUE)
+nrow(birds_list) #815spp composição de espécies
+
+# Conferindo espécies que saíram no short.traits (sp NA's)
+# Anti join: espécies que estão no x, mas não estão no y (x,y)
+birds_sp <- anti_join(birds_list, short_birds_traits, by="sp")
+nrow(birds_sp)
+
+#Retirando espécies que saíram nos traits
+rem.col.list <- birds_sp$sp
+short_birds_list <- birds_full_list[,!(names(birds_full_list)%in% rem.col.list)]
+
+ncol(short_birds_list) #708
+```
+
+Agora precisamos remover as espécies que estão presentes nos traits, mas não na composição
+```{r}
+# Lista dos short.birds.list ----------------------------
+birds_sp2 <- short_birds_list %>% gather(key="sp",value="count", Accipiter_poliogaster:Zimmerius_acer) %>% distinct(sp, .keep_all = TRUE)
+
+rem.col.names <- anti_join(short_birds_traits,birds_list,by="sp")
+head(rem.col.names)
+
+# Retirando
+short_birds_traits <- short_birds_traits[!(short_birds_traits$sp %in% rem.col.names$sp), ]
+
+nrow(short_birds_traits) #708
+ncol(short_birds_list) #708
+#OK
+
+# Colocando em ordem alfabética
+#Ordem alfabética lista
+short_birds_list <- short_birds_list[ , order(names(short_birds_list))]
+
+#Ordem alfabética traits
+short_birds_traits <- short_birds_traits[order(short_birds_traits$sp),]
+```
+
+Verificando dataset e filogenia
+```{r}
+match.phylo.comm(birds_full_phy, short_birds_list)
+
+# removendo espécies da lista e dos traits que não tem na filogenia
+rem.col.phy <- c("Agelaioides_fringillarius","Amazilia_sapphirina" , "Anabacerthia_lichtensteini" ,"Antrostomus_rufus" , "Aramides_cajaneus" ,"Asthenes_moreirae" ,"Atticora_tibialis","Automolus_lammi" , "Basileuterus_auricapilla", "Buteogallus_coronatus" ,"Calidris_subruficollis", "Cantorchilus_leucotis" ,"Cantorchilus_longirostris" ,"Celeus_galeatus" ,"Celeus_ochraceus" ,"Celeus_tinnunculus" , "Ceratopipra_rubrocapilla"  ,"Clibanornis_rectirostris" , "Elaenia_sordida", "Eupsittula_aurea" ,"Eupsittula_cactorum"  ,"Formicivora_acutirostris", "Formicivora_paludicola" ,"Geranoaetus_albicaudatus" , "Griseotyrannus_aurantioatrocristatus","Herpsilochmus_scapularis" , "Hirundinea_bellicosa","Hydropsalis_maculicaudus", "Icterus_pyrrhopterus", "Islerothraupis_cristata","Lipaugus_ater"   ,"Lipaugus_conditus" , "Mareca_sibilatrix"  ,"Microspingus_cabanisi", "Myiothlypis_flaveola" , "Myiothlypis_leucoblephara","Myiothlypis_leucophrys" ,"Myrmoderus_ruficauda"   , "Nyctipolus_hirundinaceus" ,"Ortalis_araucuan"   ,"Ortalis_squamata", "Orthopsittaca_manilatus","Parabuteo_leucorrhous","Paraclaravis_geoffroyi","Phalcoboenus_chimango", "Pheugopedius_genibarbis" ,"Philohydor_lictor" ,"Pionus_reichenowi", "Pipraeidea_bonariensis"  , "Psittacara_acuticaudatus" ,"Psittacara_leucophthalmus"  ,"Pygochelidon_melanoleuca"  ,"Rhopias_gularis"   , "Rupornis_magnirostris" , "Sarkidiornis_sylvicola","Sclerurus_cearensis" , "Spinus_yarrellii"  ,"Sporophila_angolensis" ,"Stephanoxis_loddigesii" , "Stigmatura_bahiae"  , "Synallaxis_cinerea" , "Synallaxis_hellmayri"  , "Systellura_longirostris" ,"Tangara_brasiliensis"  ,"Tangara_cyanomelas" , "Tangara_flava" , "Tangara_ornata","Tangara_palmarum" ,"Tangara_sayaca"  ,"Vireo_chivi" ,"Xiphorhynchus_guttatoides")
+
+#Composição de espécies
+short.birds.list <- short_birds_list[,!(names(short_birds_list)%in% rem.col.phy)]
+dim(short.birds.list) #638
+
+#Traits
+#Removendo espécies dos traits
+short.birds.traits <- short_birds_traits[!short_birds_traits$sp %in% rem.col.phy,]
+dim(short.birds.traits) #638 spp nos traits
+
+#Ordenando 
+short.birds.list <- short.birds.list[ , order(names(short.birds.list))]
+
+short.birds.traits <- short.birds.traits[order(short.birds.traits$sp),]
+
+#Removendo nomes em duplicada
+short.birds.traits <- short.birds.traits %>% distinct(sp, .keep_all = TRUE)
+```
+
+Agrupando com os dados filogenéticos
+```{r}
+birds_phy_list <- prune.sample(short.birds.list, birds_full_phy)
+birds_phy_list #638 espécies 
+# Traits, composição e filogenia ok!
+```
+
+### Mammals
+Conferindo e ajustando os dados
+```{r}
+mammals_full_list
+mammals_full_phy
+mammals_full_traits
+
+#Trocando . por _
+names(mammals_full_list) <- gsub(".", "_", fixed=T, names(mammals_full_list))
+#Colocando em ordem alfabética
+mammals_full_list <- mammals_full_list[ , order(names(mammals_full_list))]
+
+#Mudando na composição
+names(mammals_full_list) <- gsub("Lycalopex", "Pseudalopex", fixed=T, names(mammals_full_list)) 
+```
+
+Extraindo os traits de interesse e removendo missing data
+```{r}
+#Alterando nomenclatura nos traits
+mammals_full_traits$sp <- str_replace_all(mammals_full_traits$sp,"Lycalopex", "Pseudalopex") #Done
+
+# Extrainto traits de interesse
+vis_miss(mammals_full_traits) # 10.9% missing data
+
+#Vamos remover os repetidos e tamanho de prole
+rem.col <- c("Littersize","LittersPerYear","foraging_stratum","activity_cycle")
+
+mammals_short_traits <- mammals_full_traits[,!(names(mammals_full_traits)%in% rem.col)]
+
+# 5.6% missing data, remove.missing 590spp
+# Usando função remoção NA's ggplot2::remove_missing
+#View(is.na(short.amphibia.traits$Body_size_mm))
+
+mammals_short_traits <- remove_missing(mammals_short_traits, vars=names(mammals_short_traits))
+
+nrow(mammals_short_traits) #excluímos 49 espécies; 276 spp; 
+``` 
+
+Agora vamos verificar quais espécies da composição possuem traits
+```{r}
+# Lista para join
+# Arrumando para linhas
+mammals_list <- mammals_full_list %>%
+  gather(key="sp",value="count", Abrawayaomys_chebezi:Wilfredomys_oenax) %>% distinct(sp, .keep_all = TRUE)
+
+mammals_sp <- anti_join(mammals_list, mammals_short_traits, by="sp")
+nrow(mammals_sp) #41 espécies 
+
+#Retirando espécies da composição que não possuem traits
+rem.col.list <- mammals_sp$sp
+
+mammals_short_list <- mammals_full_list[,!(names(mammals_full_list)%in% rem.col.list)]
+ncol(mammals_short_list) #195 espécies com traits
+```
+
+Precisamos também retirar as espécies que estão nos traits, mas não estão na matriz de composição
+```{r}
+mammals_sp2 <- mammals_short_list %>%
+  gather(key="sp",value="count", Akodon_azarae:Wilfredomys_oenax) %>% distinct(sp, .keep_all = TRUE)
+
+short_mammals_traits <- semi_join(mammals_short_traits, mammals_list,by="sp") %>% distinct(sp, .keep_all = TRUE)
+
+###
+#Ordem alfabética lista
+mammals_short_list <- mammals_short_list[ , order(names(mammals_short_list))]
+
+#Ordem alfabética traits
+short_mammals_traits <- short_mammals_traits[order(short_mammals_traits$sp),]
+###
+
+nrow(short_mammals_traits) #195
+ncol(mammals_short_list) #195
+#OK!
+```
+
+Nos mamíferos, a árvore proposta por Upham precisa de alguns ajustes na nomenclatura para darmos prosseguimento nas análises
+```{r}
+#Arrumando nomenclatura 
+mammals.upham.drop <- drop.tip(mammals_full_phy, "_Anolis_carolinensis") #remove Anolis
+sp_names_full <- mammals.upham.drop$tip.label
+split_names <- sapply(strsplit(sp_names_full, split='_'), function(x) (c(x[1], x[2])))
+split_names_t <- data.frame(t(split_names))
+new_names <- paste(split_names_t$X1, split_names_t$X2, sep="_")
+
+# check if it is correct
+data.frame(original=mammals.upham$tip.label[-1][1:10], fixed=new_names[1:10])
+mammals.upham.drop$tip.label <- new_names
+
+View(mammals.upham.drop$tip.label)
+mammals.upham.drop #4175 tips
+```
+
+Depois podemos fazer o prune.sample com nossa matriz de composição de espécies
+```{r}
+mammals_phy <- prune.sample(mammals_short_list, mammals.upham.drop) #167 tips
+```
+
+Por fim, retiramos as espécies da composição e dos traits que não possuem posicionamento filogenético
+```{r}
+# Tirando da lista
+rem.col.phy <- c("Cabassous_tatouay","Callicebus_barbarabrownae","Callicebus_melanochir", "Callithrix_flaviceps", "Dasyprocta_iacki" ,"Dasyprocta_prymnolopha","Dasypus_hybridus", "Dasypus_septemcinctus", "Hylaeamys_oniscus","Leontopithecus_caissara" ,"Leontopithecus_chrysopygus","Leopardus_geoffroyi","Leopardus_guttulus", "Marmosa_paraguayana","Marmosops_bishopi","Monodelphis_unistriata","Nectomys_rattus","Oxymycterus_angularis","Oxymycterus_hispidus","Oxymycterus_roberti","Phaenomys_ferrugineus","Phyllomys_kerri","Phyllomys_medius","Phyllomys_thomasi","Phyllomys_unicolor","Reithrodon_typicus","Sapajus_cay","Tolypeutes_tricinctus","Wilfredomys_oenax")
+
+#Removendo da composição (alteração do nome de . para _)
+mammals_phy_list <- mammals_short_list[,!(names(mammals_short_list)%in% rem.col.phy)] #167
+
+#Removendo espécies dos traits
+mammals_phy_traits <- short_mammals_traits[!short_mammals_traits$sp %in% rem.col.phy,] #167
+```
+
+## Taxa de diversificação Equal split 
+Inverso do equal split
+
+###Anfíbios
+```{r}
+# ANFÍBIOS
+amphibia_dr <- evol.distinct(amphibia_phy, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+amphibia_dr$w <- 1/amphibia_dr$w #inverso equal split
+
+#Selencionando DR amphibia
+DR_amp <- amphibia_dr %>%
+  select(w)
+head(DR_amp)
+DR_amp <- as.matrix(DR_amp)
+
+#Transformando amphibia_list em matrix
+amphibia_list_matrix <- as.matrix(list.amphibia.phy)
+dim(amphibia_list_matrix)
+# Multiplicando matrizes para obter a média DR para cada célula do grid
+mean_DR_amphi <- amphibia_list_matrix%*% DR_amp
+
+# Plotando DR
+amp.dr <- cbind(mean_DR_amphi,grid_ma$id)
+amp.dr <- as.data.frame(amp.dr)
+
+# Agrupando identificação da célula e o valor DR
+dr_amphibia <- data.frame(id=grid_ma$id, DR=amp.dr$w)
+dr_amphibia
+hist(dr_amphibia$DR,
+     col = "gray50",
+     border = "gray",
+     main = "Anura",
+     xlab = "Diversification rate",
+     ylab = "Frequency",
+     br = 50)
+```
+### Squamata
+```{r}
+reptiles_phy <- prune.sample(short_squamata_list, squamata_full_phy)
+
+reptilia_dr <- evol.distinct(reptiles_phy, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+reptilia_dr$w <- 1/reptilia_dr$w
+reptilia_dr
+
+#Selencionando DR amphibia
+DR_rep <- reptilia_dr %>%
+  select(w)
+
+DR_rep <- as.matrix(DR_rep)
+dim(DR_rep)#
+
+# Para calcularmos DR, precisamos tirar a coluna ID da lista
+short.squamata.list <- short_squamata_list[,-138]
+View(short.squamata.list)
+
+#Transformando amphibia_list em matrix
+reptile_list_matrix <- as.matrix(short.squamata.list)
+dim(reptile_list_matrix)
+
+#mean DR of each grid cell
+mean_DR_rep <- reptile_list_matrix%*% DR_rep
+dim(mean_DR_rep)
+
+#DR
+rep.dr <- cbind(mean_DR_rep,id=grid_ma$id)
+dr_rep <- as.data.frame(rep.dr)
+dr_rep <- rename(dr_rep, DR = w)
+```
+### Birds
+```{r}
+birds_dr <- evol.distinct(birds_phy_list, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+birds_dr$w <- 1/birds_dr$w
+birds_dr
+
+DR_bird <- birds_dr %>%
+  select(w)
+DR_bird <- as.matrix(DR_bird)
+dim(DR_bird)#638 sp
+
+#Transformando em matrix
+birds_list_matrix <- as.matrix(short.birds.list)
+#mean DR of each grid cell
+#Multiplicação de matrizes
+mean_DR_birds <- birds_list_matrix%*% DR_bird
+
+#DR
+bird.dr <- cbind(mean_DR_birds,id=grid_ma$id)
+dr_bird <- as.data.frame(rep.dr)
+```
+### Mammals
+```{r}
+mammals_dr <- evol.distinct(mammals_phy, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+mammals_dr$w <- 1/mammals_dr$w
+dim(mammals_dr)
+
+#Mapeando DR mamíferos
+#Selencionando DR
+DR_mam <- mammals_dr %>%
+  select(w)
+head(DR_mam)
+DR_mam <- as.matrix(DR_mam)
+dim(DR_mam)#177 sp
+
+#Transformando reptile_list em matrix
+mammals_list_matrix <- as.matrix(mammals_phy_list)
+
+#mean DR of each grid cell
+mean_DR_mammals <- mammals_list_matrix%*% DR_mam
+dim(mean_DR_mammals)
+
+#Colocando número do grid
+mam.dr <- cbind(mean_DR_mammals,id=grid_ma$id)
+class(mam.dr)
+mam.dr <- as.data.frame(mam.dr)
+
+dr_mammals <- data.frame(id=grid_ma$id, DR=mam.dr$w)
+dr_mammals
+```
+
+## Mean Pairwise Distance - Tempo evolutivo
+Calculamos essa medida para cada célula do grid separadamente para cada grupo de vertebrado
+
+###Anfíbios
+```{r}
+amp.mpd <- mpd(list.amphibia.phy, cophenetic(amphibia_phy), abundance.weighted=F)
+head(amp.mpd)
+
+#Agrupando com identificação de cada célula
+amp.mpd <- cbind(amp.mpd,id=grid_ma$id)
+class(amp.mpd)
+amp.mpd <- as.data.frame(amp.mpd)
+
+mpd_amphibia <- data.frame(id=grid_ma$id, MPD=amp.mpd$amp.mpd)
+```
+### Squamata
+```{r}
+reptile.mpd <- mpd(short.squamata.list, cophenetic(reptiles_phy), abundance.weighted=F)
+
+#numeracao <- 1:nrow(amphibia.list) #Arrumando FDIS1 para ID
+reptile.mpd <- cbind(reptile.mpd,id=grid_ma$id)
+class(reptile.mpd)
+reptile.mpd <- as.data.frame(reptile.mpd)
+
+#Reptile
+mpd_reptile <- data.frame(id=reptile.mpd$id, MPD=reptile.mpd$reptile.mpd)
+```
+### Birds
+```{r}
+birds.mpd <- mpd(short.birds.list, cophenetic(birds_phy_list), abundance.weighted=F)
+
+#numeracao <- 1:nrow(amphibia.list) #Arrumando FDIS1 para ID
+birds.mpd <- cbind(birds.mpd,id=grid_ma$id)
+birds.mpd <- as.data.frame(birds.mpd)
+
+#Arrumando títulos
+mpd_birds <- data.frame(id=birds.mpd$id, MPD=birds.mpd$birds.mpd)
+```
+
+### Mammals
+```{r}
+mammals.mpd <- mpd(mammals_phy_list, cophenetic(mammals_phy), abundance.weighted=F)
+
+#numeracao <- 1:nrow(amphibia.list) #Arrumando FDIS1 para ID
+mammals.mpd <- cbind(mammals.mpd,id=grid_ma$id)
+class(mammals.mpd)
+mammals.mpd <- as.data.frame(mammals.mpd)
+
+mammals.mpd <- data.frame(id=grid_ma$id, MPD=mammals.mpd$mammals.mpd)
+```
+
+## Dispersão funcional
+Agora iremos calcular dispersão funcional (FDisp) dos quatro grupos de vertebrados terrestres. 
+
+###Anfíbios
+```{r}
+# Primeiro, precisamos preparar as variáveis
+#Atividade circadiana
+atividade <- traits.amphibia.phy %>% 
+  select(sp, Diu, Crepu, Noc) %>%
+  mutate_at(vars(2:4), list(~replace(., is.na(.), 0)))
+atividade <- as.tibble(atividade)
+
+atividade <- column_to_rownames(as.data.frame(atividade),var = "sp")
+
+dist_ativ <- prep.binary(atividade, col.blocks = 3, labels = "atividade_circadiana")
+
+# Habitat
+names(traits.amphibia.phy)
+habitat <- traits.amphibia.phy %>% 
+  select(sp, Fos, Ter, Aqu, Arb) %>%
+  mutate_at(vars(2:5), list(~replace(., is.na(.), 0)))
+habitat
+
+habitat <- as.tibble(habitat)
+
+habitat <- column_to_rownames(as.data.frame(habitat), 
+                                var = "sp")
+dist_habitat <- prep.binary(habitat, col.blocks = 4, labels = "habitat")
+
+# Transformando para numeric traitss
+sum(is.na(traits.amphibia.phy$Body_size_mm)) # 0 NA's
+traits.amphibia.phy <- traits.amphibia.phy %>% 
+  mutate_at("Body_size_mm", list(as.numeric))
+class(traits.amphibia.phy$Body_size_mm)
+
+#Explorando body size
+ggplot(traits.amphibia.phy, aes(Body_size_mm))+
+  geom_density()
+
+bodysize <- data.frame(BodySize=log(traits.amphibia.phy$Body_size_mm))
+rownames(bodysize) <- traits.amphibia.phy$sp
+head(bodysize)
+nrow(bodysize)
+
+#Explorando range extension
+sum(is.na(traits.amphibia.phy$area_m))#ok
+
+range.ext <- data.frame(range.extension=(as.numeric(as.character(traits.amphibia.phy$area_m))))
+
+#Unindo traits quantitativos em um conjunto de dados
+quant.traits.amphi <- cbind(bodysize, range.ext)
+sum(is.na(quant.traits.amphi)) #pronto!
+```
+```{r}
+#Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
+trait.dist <- dist.ktab(ktab.list.df(list(dist_ativ, dist_habitat, as.data.frame(quant.traits.amphi))), type = c("B","B","Q"), scan=TRUE)
+#10 = S2 coefficient of GOWER & LEGENDRE for multi-choice traits
+#1 = Euclidean for quantitative traits
+
+?dist.ktab
+
+is.euclid(trait.dist)#TRUE =D
+sum(as.matrix(is.na(trait.dist)))#no NAs :)
+
+####
+# Wed Mar 31 16:11:06 2021 ------------------------------
+# Calculating Functional Diversity metrics
+disp.func.amphibia <- fdisp(trait.dist, as.matrix(list.amphibia.phy))
+
+FDis_metric_amphibia <- data.frame(id=grid_ma$id, FDis=disp.func.amphibia$FDis)
+```
+
+### Squamata
+```{r}
+# Calling as.binary() function
+# Transformando variáveis binárias
+# Atividade circadiana 
+names(short_squamata_traits)
+
+atividade.reptile <- short_squamata_traits %>% 
+  select(sp, diurnal, nocturnal) %>%
+  mutate_at(vars(2:3), list(~replace(., is.na(.), 0)))
+atividade.reptile <- as.tibble(atividade.reptile)
+atividade.reptile <- column_to_rownames(as.data.frame(atividade.reptile),var = "sp")
+
+dist_ativ_reptile <- prep.binary(atividade.reptile, col.blocks = 2, labels = "atividade_circadiana")
+
+# habitat
+names(short_squamata_traits)
+
+habitat.reptile <- short_squamata_traits %>% 
+  select(sp, Terrestre, Arboricola, Fossorial, Aquatica) %>%
+  mutate_at(vars(2:5), list(~replace(., is.na(.), 0)))
+
+habitat.reptile <- as.tibble(habitat.reptile)
+habitat.reptile <- column_to_rownames(as.data.frame(habitat.reptile), var = "sp")
+
+dist_habitat_reptile <- prep.binary(habitat.reptile, col.blocks = 4, labels = "habitat")
+
+# Thu Apr 01 17:28:40 2021 ------------------------------
+# Transformando para numeric traitss
+head(short_squamata_traits)
+sum(is.na(short_squamata_traits$"SVL..mm.")) # 0 NA's
+
+short_squamata_traits <- short_squamata_traits %>% 
+  mutate_at("SVL..mm.", list(as.numeric))
+
+#Explorando body size
+ggplot(short_squamata_traits, aes(SVL..mm.))+
+  geom_density()
+
+bodysize.reptile <- data.frame(BodySize=log(short_squamata_traits$SVL..mm.))
+
+rownames(bodysize.reptile) <- short_squamata_traits$sp
+
+head(bodysize.reptile) #ok
+nrow(bodysize.reptile) #261
+
+#Explorando range extension
+sum(is.na(short_squamata_traits$range_m2))#ok
+
+range.ext.reptile <- data.frame(range.extension=(as.numeric(as.character(short_squamata_traits$range_m2))))
+
+#Unindo traits quantitativos em um conjunto de dados
+quant.traits.reptile <- cbind(bodysize.reptile, range.ext.reptile)
+sum(is.na(quant.traits.reptile)) #OK!
+```
+```{r}
+#Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
+trait.dist.reptile <- dist.ktab(ktab.list.df(list(dist_ativ_reptile, dist_habitat_reptile, as.data.frame(quant.traits.reptile))), type = c("B","B","Q"), scan=TRUE)
+#10 = S2 coefficient of GOWER & LEGENDRE for multi-choice traits
+#1 = Euclidean for quantitative traits
+
+is.euclid(trait.dist.reptile)#True!
+sum(as.matrix(is.na(trait.dist.reptile)))#no NAs :)
+
+# Para calcularmos FDisp, precisamos tirar a coluna ID da lista
+short.squamata.list <- short_squamata_list[,-138]
+
+View(short_squamata_list)
+
+#Calculando FDisp
+disp.func.reptile <- fdisp(trait.dist.reptile, as.matrix(short.squamata.list))
+
+FDis_metric_reptiles <- data.frame(id=grid_ma$id, FDis=disp.func.reptile$FDis)
+```
+### Birds
+```{r}
+names(short.birds.traits)
+
+habitat.birds <- short.birds.traits %>% 
+  select(sp, ForStrat.watbelowsurf, ForStrat.wataroundsurf, ForStrat.ground, ForStrat.understory, ForStrat.midhigh, ForStrat.canopy, ForStrat.aerial) %>%
+  mutate_at(vars(2:7), list(~replace(., is.na(.), 0)))
+habitat.birds <- as.tibble(habitat.birds) %>% distinct(sp, .keep_all = TRUE)
+
+habitat.birds <- column_to_rownames(as.data.frame(habitat.birds), var = "sp")
+
+#prep.fuzzy
+dist_habitat_birds <- prep.fuzzy(habitat.birds, col.blocks = 7, labels = "habitat")
+
+#Body mass
+body.mass.birds <- data.frame(body.mass=(as.numeric(as.character(short.birds.traits$BodyMass.Value))))
+View(short_birds_traits)
+#Explorando body size
+#
+rownames(body.mass.birds) <- short.birds.traits$sp
+
+bodysize.birds <- data.frame(BodySize=log(body.mass.birds$body.mass))
+
+head(bodysize.birds) #ok
+nrow(bodysize.birds) #638, ok
+
+#Explorando range extension
+sum(is.na(short.birds.traits$range_m2))#ok
+
+range.ext.birds <- data.frame(range.extension=(as.numeric(as.character(short.birds.traits$range_m2))))
+
+#Unindo traits quantitativos em um conjunto de dados
+quant.traits.birds <- cbind(bodysize.birds, range.ext.birds)
+sum(is.na(quant.traits.birds))
+
+#atividade_bird
+atividade_bird <- short.birds.traits %>% 
+  select(sp, Nocturnal, PelagicSpecialist) %>%
+  mutate_at(vars(2:3), list(~replace(., is.na(.), 0)))
+
+atividade_bird<- as.tibble(atividade_bird)
+
+atividade_bird <- column_to_rownames(as.data.frame(atividade_bird), var = "sp")
+```
+```{r}
+#Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
+trait.dist.birds <- dist.ktab(ktab.list.df(list(atividade_bird, dist_habitat_birds, as.data.frame(quant.traits.birds))), type = c("D","F","Q"), scan=TRUE)
+#2 =Overlap index Manly d2 = 1-Sum(p(i)q(i))/sqrt(Sum(p(i)^2))/sqrt(Sum(q(i)^2))
+#1 = Euclidean for quantitative traits
+
+is.euclid(trait.dist.birds)#False! =(
+is.euclid(sqrt(trait.dist.birds))#True =)
+sum(as.matrix(is.na(trait.dist.birds)))#no NAs :)
+
+disp.func.birds <- fdisp(sqrt(trait.dist.birds), as.matrix(short.birds.list)) #tol = 1e-07
+
+FDis_metric_birds <- data.frame(id=grid_ma$id, FDis=disp.func.birds$FDis)
+```
+
+### Mammals
+```{r}
+atividade.mammals <- mammals_phy_traits %>% 
+  select(sp, cathemeral, crepuscular, diurnal, nocturnal) %>%
+  mutate_at(vars(2:4), list(~replace(., is.na(.), 0)))
+
+atividade.mammals <- as.tibble(atividade.mammals)
+
+atividade.mammals <- column_to_rownames(as.data.frame(atividade.mammals),var = "sp")
+
+dist_ativ_mammals <- prep.binary(atividade.mammals, col.blocks = 4, labels = "atividade_circadiana")
+
+# habitat
+habitat.mammals <- mammals_phy_traits %>% 
+  select(sp, fossorial, ground_dwelling, aboveground_dwelling, aquatic) %>%
+  mutate_at(vars(2:5), list(~replace(., is.na(.), 0)))
+
+habitat.mammals <- as.tibble(habitat.mammals)
+habitat.mammals <- column_to_rownames(as.data.frame(habitat.mammals), var = "sp")
+
+dist_habitat_mammals <- prep.binary(habitat.mammals, col.blocks = 4, labels = "habitat")
+
+# Thu Apr 01 16:01:33 2021 ------------------------------
+# Transformando para numeric traitss
+sum(is.na(mammals_phy_traits$"body_mass_g.avg.")) # 0 NA's
+
+mammals_phy_traits <- mammals_phy_traits %>% 
+  mutate_at("body_mass_g.avg.", list(as.numeric))
+class(mammals_phy_traits$body_mass_g.avg.)
+
+#Explorando body size
+ggplot(mammals_phy_traits, aes(body_mass_g.avg.))+
+  geom_density()
+
+bodysize.mammals <- data.frame(BodySize=log(mammals_phy_traits$body_mass_g.avg.))
+
+rownames(bodysize.mammals) <- mammals_phy_traits$sp
+dim(bodysize.mammals) #ok
+
+#Explorando range extension
+sum(is.na(mammals_phy_traits$area_m2))#ok
+
+range.ext.mammals <- data.frame(range.extension=(as.numeric(as.character(mammals_phy_traits$area_m2))))
+
+#Unindo traits quantitativos em um conjunto de dados
+quant.traits.mammals <- cbind(bodysize.mammals, range.ext.mammals)
+sum(is.na(quant.traits.mammals))
+
+#Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
+trait.dist.mammals <- dist.ktab(ktab.list.df(list(dist_ativ_mammals, dist_habitat_mammals, as.data.frame(quant.traits.mammals))), type = c("B","B","Q"), scan=TRUE)
+#10 = S2 coefficient of GOWER & LEGENDRE for multi-choice traits
+#1 = Euclidean for quantitative traits
+
+is.euclid(trait.dist.mammals)#TRUE =)
+sum(as.matrix(is.na(trait.dist.mammals)))#no NAs :)
+```
+```{r}
+# fdisp measures the functional dispersion (FDis) of a set of communities, as described by Laliberté and Legendre (2010).
+
+disp.func.mammals <- fdisp(trait.dist.mammals, as.matrix(mammals_phy_list)) #tol = 1e-07
+
+FDis_metric_mammals <- data.frame(id=grid_ma$id, FDis=disp.func.mammals$FDis)
+```
+
+## Riqueza
+Calculamos para cada comunidade a riqueza
+###Anfíbios
+```{r}
+rich_amphibia_list <- list.amphibia.phy %>%
+  mutate_at(c(names(list.amphibia.phy)), as.numeric) %>%
+  mutate(Rich = rowSums(list.amphibia.phy))
+
+rich_amphibia <- data.frame(id=grid_ma$id, richness=rich_amphibia_list$Rich)
+```
+### Squamata
+```{r}
+rich_reptile_list <- short.squamata.list %>%
+  mutate_at(c(names(short.squamata.list)), as.numeric) %>%
+  mutate(Rich = rowSums(short.squamata.list))
+
+rich_reptile <- data.frame(id=grid_ma$id, richness=rich_reptile_list$Rich)
+```
+### Birds
+```{r}
+rich_birds_list <- short.birds.list %>%
+  mutate_at(c(names(short.birds.list)), as.numeric) %>%
+  mutate(Rich = rowSums(short.birds.list))
+dim(rich_birds_list) #coluna riqueza
+
+rich_birds <- data.frame(id=grid_ma$id, richness=rich_birds_list$Rich)
+```
+### Mammals
+```{r}
+rich_mammals_list <-mammals_phy_list %>%
+  mutate_at(c(names(mammals_phy_list )), as.numeric) %>%
+  mutate(Rich = rowSums(mammals_phy_list ))
+rich_mammals_list
+
+rich_mammals <- data.frame(id=grid_ma$id, richness=rich_mammals_list$Rich)
+```
+
+## Agrupando os dados e salvando .shp 
+```{r}
+#Anfíbios
+amphibia_data <- full_join(grid_ma, dr_amphibia, by = "id")
+amphibia_data <- full_join(amphibia_data, mpd_amphibia, by = "id")
+amphibia_data <- full_join(amphibia_data, FDis_metric_amphibia, by = "id")
+amphibia_data <- full_join(amphibia_data,rich_amphibia, by="id" )
+
+#Salvando shapefile
+amphibia_data <- st_set_crs(amphibia_data, 4326)
+st_write(amphibia_data, "amp_data.shp", append=F)
+
+#Répteis
+reptile_data <- full_join(grid_ma, dr_rep, by="id")
+reptile_data <- full_join(reptile_data, mpd_reptile, by="id")
+reptile_data <- full_join(reptile_data, FDis_metric_reptiles, by="id")
+reptile_data <- full_join(reptile_data, rich_reptile, by="id") 
+
+#Salvando shapefile
+reptile_data <- st_set_crs(reptile_data, 4326)
+st_write(reptile_data, "rep_data.shp", append=F)
+
+#Aves
+birds_data <- full_join(grid_ma, dr_bird, by="id") 
+birds_data <- full_join(birds_data, mpd_birds, by="id")
+birds_data <- full_join(birds_data, FDis_metric_birds, by="id")
+birds_data <- full_join(birds_data, rich_birds, by="id")
+                        
+#Salvando shapefile
+birds_data <- st_set_crs(birds_data, 4326)
+st_write(birds_data, "birds_data.shp", append=F)
+
+#Mamíferos
+mammals_data <- full_join(grid_ma, dr_mammals, by="id")
+mammals_data <- full_join(mammals_data, mammals.mpd, by="id") 
+mammals_data <- full_join(mammals_data, FDis_metric_mammals, by="id")
+mammals_data <- full_join(mammals_data, rich_mammals, by="id")
+dim(mammals_data)
+#Salvando shapefile
+mammals_data <- st_set_crs(mammals_data, 4326)
+st_write(mammals_data, "mammals_data.shp", append=F)
+``` 
+
+
+## Full dataset
+```{r}
+# Unir os dados
+full_biotic <- data.frame(id=amphibia_data$id, amp.fdisp=amphibia_data$FDis, amp.dr=amphibia_data$DR, amp.mpd=amphibia_data$MPD, rich.amp=amphibia_data$richness, rep.fdisp=reptile_data$FDis,rep.dr=reptile_data$DR,rep.mpd=reptile_data$MPD, rich.rep=reptile_data$richness, mam.fdisp=mammals_data$FDis, mam.dr=mammals_data$DR, mam.mpd=mammals_data$MPD, mam.rich=mammals_data$richness,bird.fdisp=birds_data$FDis, bird.rich=birds_data$richness,bird.mpd=birds_data$MPD,bird.dr=birds_data$w)
+                          
+#Acrescentando coordenada
+full <- as.data.frame(cbind(grid_center, id=sq_grid$id))
+
+# Agrupando dados abióticos e bióticos
+full_data <- full_join(full_biotic, data_abiotic, by="id")
+full_data <- full_join(full_data, full, by="id")
+full_data <- remove_missing(full_data) #424 comunidades - 8 comunidades retiradas pois estavam sem dados climáticos
+```
+
+
+
+## Data analysis
+### Spatial congruence with Tjøstheim’s Coefficient
+Tjøstheim (1978) introduced a nonparametric coefficient to measure the association between two spatial sequences. This measure is useful even for two ordinal variables. It constitutes an extension of standard rank-order correlation coefficients such as Spearman’s rho and Kendall’s tau (Glick 1982).
+```{r}
+# computing Tjostheim's coefficient
+birds_mammals <- cor.spatial(birds_data$FDis, mammals_data$FDis, grid_center)
+birds_reptile <- cor.spatial(birds_data$FDis, reptile_data$FDis, grid_center)
+birds_amphibia <- cor.spatial(birds_data$FDis,amphibia_data$FDis,grid_center)
+mammals_reptile <- cor.spatial(mammals_data$FDis, reptile_data$FDis, grid_center)
+mammals_amphibia <- cor.spatial(mammals_data$FDis, amphibia_data$FDis, grid_center)
+amphibia_reptile <- cor.spatial(amphibia_data$FDis, reptile_data$FDis, grid_center)
+
+round(mammals_reptile, 3)
+round(amphibia_reptile, 3)
+round(mammals_amphibia, 3)
+round(birds_mammals, 3)
+round(birds_reptile, 3)
+round(birds_amphibia, 3)
+``` 
+
+### Figures
+```{r}
+# Criando arquivo espacial com todos os dados
+grid_data <- full_join(grid_ma, full_data,  by="id")
+class(grid_data)
+names(grid_data)
+
+#Removendo os missing data da grid 
+grid_data <- remove_missing(grid_data)
+
+# Anfíbios
+mapfdips.amp <- tm_shape(grid_data) +
+    tm_fill("amp.fdisp", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+
+mapdr.amp <- tm_shape(grid_data) +
+    tm_fill("amp.dr", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+
+mapmpd.amp <- tm_shape(grid_data) +
+    tm_fill("amp.mpd", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+
+maprich.amp <- tm_shape(grid_data) +
+    tm_fill("rich.amp", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+
+mapamp <- tmap_arrange(mapfdips.amp, maprich.amp, mapdr.amp, mapmpd.amp)
+tmap_save(mapamp, "map_amp.png", width=1920, height=1080, asp=0)
+
+# Squamata
+mapfdisp.rep <- tm_shape(grid_data) +
+    tm_fill("rep.fdisp", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+
+mapdr.rep <- tm_shape(grid_data) +
+    tm_fill("rep.dr", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+
+mapmpd.rep <- tm_shape(grid_data) +
+    tm_fill("rep.mpd", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+
+maprich.rep <- tm_shape(grid_data) +
+    tm_fill("rich.rep", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+
+maprep <- tmap_arrange(mapfdisp.rep, maprich.rep, mapdr.rep, mapmpd.rep)
+tmap_save(maprep, "map_rep.png", width=1920, height=1080, asp=0)
+
+# Birds
+mapfdips.bird <- tm_shape(grid_data) +
+    tm_fill("bird.fdisp", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+mapdr.bird <- tm_shape(grid_data) +
+    tm_fill("bird.dr", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+mapmpd.bird <- tm_shape(grid_data) +
+    tm_fill("bird.mpd", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+maprich.bird <- tm_shape(grid_data) +
+    tm_fill("bird.rich", palette = "viridis", style = "cont") +
+    tm_borders(alpha=.3) +
+    tm_layout(legend.outside = TRUE,frame = FALSE)
+
+mapbirds <- tmap_arrange(mapfdips.bird, maprich.bird, mapdr.bird, mapmpd.bird)
+tmap_save(mapbirds, "map_birds.png", width=1920, height=1080, asp=0)
+
+# Mammals
+mapfdisp.mam <- tm_shape(grid_data) +
+  tm_fill("mam.fdisp", palette = "viridis", style = "cont", title="FDisp") +
+  tm_borders(alpha=.3)  +
+  tm_layout(legend.outside = TRUE,frame = FALSE)
+
+mapdr.mam <- tm_shape(grid_data) +
+  tm_fill("mam.dr", palette = "viridis", style = "cont", title="DR") +
+  tm_borders(alpha=.3)  +
+  tm_layout(legend.outside = TRUE,frame = FALSE)
+
+mapmpd.mam <- tm_shape(grid_data) +
+  tm_fill("mam.mpd", palette = "viridis", style = "cont", title="MPD") +
+  tm_borders(alpha=.3)+
+  tm_layout(legend.outside = TRUE,frame = FALSE)
+
+maprich.mam <- tm_shape(grid_data) +
+  tm_fill("mam.rich", palette="viridis", style = "cont", title="Richness") +
+  tm_borders(alpha=.3) +
+  tm_layout(legend.outside = TRUE,frame = FALSE)
+
+mapmammals <- tmap_arrange(mapfdisp.mam, maprich.mam, mapdr.mam, mapmpd.mam)
+tmap_save(mapmammals, "map_mammals.png", width=1920, height=1080, asp=0)
+```
+
+Histogramas variáveis preditoras
+```{r}
+# Riqueza
+par(mfrow=c(2,2))
+hist(rich_amphibia$richness,
+     col = "gray50",
+     border = "gray",
+     main = "Anura",
+     xlab = "Richness",
+     ylab = "Frequency",
+     br = 30)
+hist(rich_reptile$richness,
+     col = "gray50",
+     border = "gray",
+     main = "Squamata",
+     xlab = "Richness",
+     ylab = "Frequency",
+     br = 50)
+hist(rich_birds$richness,
+     col = "gray50",
+     border = "gray",
+     main = "Birds",
+     xlab = "Richness",
+     ylab = "Frequency",
+     br = 50)
+hist(rich_mammals$richness,
+     col = "gray50",
+     border = "gray",
+     main = "Non-volant mammals",
+     xlab = "Richness",
+     ylab = "Frequency",
+     br = 30)
+
+
+# Fdisp
+hist(full_data$amp.fdisp,
+     col = "gray50",
+     border = "gray",
+     main = "Anura",
+     xlab = "Functional dispersion",
+     ylab = "Frequency",
+     br = 30)
+hist(full_data$rep.fdisp, 
+     col = "gray50",
+     border = "gray",
+     main = "Squamata",
+     xlab = "Functional dispersion",
+     ylab = "Frequency",
+     br = 50)
+hist(full_data$bird.fdisp,
+     col = "gray50",
+     border = "gray",
+     main = "Birds",
+     xlab = "Functional dispersion",
+     ylab = "Frequency",
+     br = 50)
+hist(full_data$mam.fdisp,
+     col = "gray50",
+     border = "gray",
+     main = "Non-volant mammals",
+     xlab = "Functional dispersion",
+     ylab = "Frequency",
+     br = 50)
+
+#MPD
+hist(mpd_amphibia$MPD,
+     col = "gray50",
+     border = "gray",
+     main = "Anura",
+     xlab = "Evolutionary time",
+     ylab = "Frequency",
+     br = 50)
+hist(mpd_reptile$MPD,
+     col = "gray50",
+     border = "gray",
+     main = "Squamata",
+     xlab = "Evolutionary time",
+     ylab = "Frequency",
+     br = 50)
+hist(mpd_birds$MPD,
+     col = "gray50",
+     border = "gray",
+     main = "Birds",
+     xlab = "Evolutionary time",
+     ylab = "Frequency",
+     br = 50)
+hist(mammals.mpd$MPD,
+     col = "gray50",
+     border = "gray",
+     main = "Non-volant mammals",
+     xlab = "Evolutionary time",
+     ylab = "Frequency",
+     br = 50)
+
+#DR
+hist(dr_amphibia$DR,
+     col = "gray50",
+     border = "gray",
+     main = "Anura",
+     xlab = "Diversification rate",
+     ylab = "Frequency",
+     br = 50)
+hist(dr_rep$DR,
+     col = "gray50",
+     border = "gray",
+     main = "Squamata",
+     xlab = "Diversification rate",
+     ylab = "Frequency",
+     br = 50)
+hist(dr_bird$w,
+     col = "gray50",
+     border = "gray",
+     main = "Birds",
+     xlab = "Diversification rate",
+     ylab = "Frequency",
+     br = 50)
+hist(dr_mammals$DR,
+     col = "gray50",
+     border = "gray",
+     main = "Non-volant mammals",
+     xlab = "Diversification rate",
+     ylab = "Frequency",
+     br = 50)
+```
+
+Scatter plot da FDis contra riqueza de espécies para cada grupo e ajuste uma curva de loess, é simples fazer isso no ggplot com o stat_smooth;
+```{r}
+#Anuros
+anura.rich.fdisp <- ggplot(full_data, aes(x=rich.amp, y=amp.fdisp)) +
+  geom_point() +
+  labs(x = "Richness", y= "Functional dispersion", title = "Anura")+
+  stat_smooth(method = "loess") +
+  theme_gray(base_size = 10)
+
+#Répteis
+rep.rich.fdisp <- ggplot(full_data, aes(x=rich.rep, y=rep.fdisp)) +
+  geom_point() +
+  labs(x = "Richness", y= "Functional dispersion", title = "Squamatas") +
+  stat_smooth(method = "loess") +
+  theme_gray(base_size = 10)
+
+#Aves
+bird.rich.fdisp <- ggplot(full_data, aes(x=bird.rich, y=bird.fdisp)) +
+  geom_point() +
+  labs(x = "Richness", y= "Functional dispersion", title = "Birds") +
+  stat_smooth(method = "loess") +
+  theme_gray(base_size = 10)
+
+#Mamiferos
+mam.rich.fdisp <- ggplot(full_data, aes(x=mam.rich, y=mam.fdisp)) +
+  geom_point() +
+  labs(x = "Richness", y= "Functional dispersion", title = "Non-volant mammals") +
+  stat_smooth(method = "loess") +
+  theme_gray(base_size = 10)
+
+# combinacao horizontal
+plot_grid(anura.rich.fdisp, rep.rich.fdisp, bird.rich.fdisp, mam.rich.fdisp, align = "h", rel_widths = c(1, 1),labels = "AUTO")
+```
+
+Agora vamos fazer um plot do trait space usando uma PCoA a partir da matriz de distância de traits pra cada grupo
+```{r}
+
+# Anuros
+###
+amp.trait.space <- ape::pcoa(trait.dist)
+amp.trait.space$values
+trait.space.amp <- (teste$vectors[,1:18])
+
+#Répteis
+rep.trait.space <- ape::pcoa(trait.dist.reptile)
+rep.trait.space$values
+#Plot trait space
+trait.space.rep <- (rep.space$vectors[,1:9])
+
+#Aves
+bird.trait.space <- ape::pcoa(trait.dist.birds)
+bird.trait.space$values
+#Plot trait space
+trait.space.birds <-(bird.trait.space$vectors[,1:19])
+  
+#Mammals
+mam.trait.space <- ape::pcoa(trait.dist.mammals)
+mam.trait.space$values
+#Plot trait space
+trait.space.mam <- (mam.trait.space$vectors[,1:10])
+
+#Plot
+par(mfrow=c(2,2))
+biplot(amp.trait.space)
+biplot(rep.trait.space)
+biplot(bird.trait.space)
+biplot(mam.trait.space)
+```
+
+### Structural equation model
+SEM é uma ferramenta útil para quantificar efeitos diretos e indiretos de cada variável preditora na variável resposta. Primeiro, vamos criar uma variável latente chamada clima com os dados obtidos do CHELSA
+```{r}
+# Construímos um modelo linear das variáveis que serão preditas pelo clima
+ml <- lm(bird.rich + rich.rep + rep.fdisp + mam.fdisp + bird.fdisp + amp.fdisp + bird.mpd + amp.mpd + rep.mpd + mam.mpd + rich.amp + rich.rep + bird.dr + mam.dr + amp.dr + rep.dr ~ BIO02+BIO03+BIO04+BIO07+BIO11+BIO15+BIO17, data=full_data)
+
+# Verificando multicolinearidade - VIF
+#fator de inflação de variância (VIF)
+#create vector of VIF values
+vif_values <- vif(ml)
+#create horizontal bar chart to display each VIF value
+barplot(vif_values, main = "VIF Values", horiz = TRUE, col = "steelblue")+abline(v = 10)
+#add vertical line at 5
+vif_values #variáveis Bio02 e Bio07 estão com valores altissimos
+
+#Modelo sem bio02 e bio07
+ml2 <- lm(bird.rich + rich.rep + rep.fdisp + mam.fdisp + bird.fdisp + amp.fdisp + bird.mpd + amp.mpd + rep.mpd + mam.mpd + rich.amp + rich.rep + bird.dr + mam.dr + amp.dr + rep.dr ~ BIO03+BIO04+BIO11+BIO15+BIO17, data=full_data)
+# Verificando multicolinearidade - VIF
+#create vector of VIF values
+vif_values2 <- vif(ml2)
+#create horizontal bar chart to display each VIF value
+barplot(vif_values2, main = "VIF Values", horiz = TRUE, col = "steelblue")+abline(v = 10)
+
+# A função de ajuste de máxima verossimilhança escolhe estimativas de parâmetros para cada preditor que maximizam a probabilidade de observar a resposta;
+# Esses valores de parâmetro servem como cargas para os indicadores da variável composta;
+
+#os compostos estatísticos podem ser reduzidos aos coeficientes de uma regressão múltipla:
+# Coeficientes 
+rich_03 <- summary(ml2)$coefficients[2, 1]
+rich_04 <-  summary(ml2)$coefficients[3, 1]
+rich_11 <-  summary(ml2)$coefficients[4, 1]
+rich_15 <-  summary(ml2)$coefficients[5, 1]
+rich_17 <-  summary(ml2)$coefficients[6, 1]
+
+# Os dados de cada indicador são multiplicados por sua carga e somados para gerar as pontuações dos fatores para a variável composta, que é então usada no modelo estrutural.
+# Criando
+climate <- rich_03 * full_data$BIO03 + rich_04 * full_data$BIO04 + rich_11 * full_data$BIO11 + rich_15 * full_data$BIO15 + rich_17 * full_data$BIO17
+class(climate)#numeric
+
+#Adicionando ao conjunto de dados
+climate <- data.frame(id=full_data$id, climate)
+full_data <- full_join(full_data, climate, by="id")
+```
+
+Agora vamos construir nossos modelos espacialmente explicitos
+```{r}
+# Estruturas de correlação
+spaceExp <- corExp(form =~ V2+V1, nugget=T)
+spaceGaus <- corGaus(form =~ V2+V1, nugget=T)
+spaceLin <- corLin(form=~ V2+V1, nugget=T)
+spaceRatio <- corRatio(form=~ V2+V1, nugget=T)
+spaceSpher <- corSpher(form= ~V2+V1, nugget=T)
+
+# Modelos corrigindo a autocorrelação espacial
+# Amphibia
+# spaceCor     
+names(full_data)
+gls.amp.1.exp <- gls(amp.fdisp ~ rich.amp + climate + Elevation + Productivity + amp.dr + amp.mpd, data=full_data, correlation = spaceExp)
+gls.amp.2.exp <- gls(rich.amp ~ climate + Elevation + Productivity + amp.dr + amp.mpd, data=full_data, correlation = spaceExp)
+gls.amp.3.exp <- gls(amp.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceExp)
+gls.amp.4.exp <- gls(amp.dr ~ amp.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceExp)
+
+#spaceGaus
+gls.amp.1.gaus <- gls(amp.fdisp ~ rich.amp + climate + Elevation + Productivity + amp.dr + amp.mpd, data=full_data, correlation = spaceGaus)
+gls.amp.2.gaus <- gls(rich.amp ~ climate + Elevation + Productivity + amp.dr + amp.mpd, data=full_data, correlation = spaceGaus)
+gls.amp.3.gaus <- gls(amp.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceGaus)
+gls.amp.4.gaus <- gls(amp.dr ~ amp.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceGaus)
+
+#spaceLin
+gls.amp.1.lin <- gls(amp.fdisp ~ rich.amp + climate + Elevation + Productivity + amp.dr + amp.mpd, data=full_data, correlation = spaceLin)
+gls.amp.2.lin <- gls(rich.amp ~ climate + Elevation + Productivity + amp.dr + amp.mpd, data=full_data, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T))
+gls.amp.3.lin <- gls(amp.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceLin)
+gls.amp.4.lin <- gls(amp.dr ~ amp.mpd + climate + Elevation + Productivity, data = full_data, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T))
+ 
+#spaceRatio
+gls.amp.1.ratio <- gls(amp.fdisp ~ rich.amp + climate + Elevation + Productivity + amp.dr + amp.mpd, data=full_data, correlation = spaceRatio)
+gls.amp.2.ratio <- gls(rich.amp ~ climate + Elevation + Productivity + amp.dr + amp.mpd, data=full_data, correlation = spaceRatio)
+gls.amp.3.ratio <- gls(amp.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceRatio)
+gls.amp.4.ratio <- gls(amp.dr ~ amp.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceRatio)
+
+#spaceSpher
+gls.amp.1.spher <- gls(amp.fdisp ~ rich.amp + climate + Elevation + Productivity + amp.dr + amp.mpd, data=full_data, correlation = spaceSpher)
+gls.amp.2.spher <- gls(rich.amp ~ climate + Elevation + Productivity + amp.dr + amp.mpd, data=full_data, correlation = spaceSpher)
+gls.amp.3.spher <- gls(amp.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceSpher)
+gls.amp.4.spher <- gls(amp.dr ~ amp.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceSpher)
+
+hist(gls.amp.1.exp$residuals)
+
+###
+# Squamata
+# spaceExp
+gls.rep.1.exp <- gls(rep.fdisp ~ rich.rep + rep.dr + rep.mpd + climate + Elevation + Productivity, data=full_data, correlation= spaceExp)
+gls.rep.2.exp <- gls(rich.rep ~ climate + Elevation + Productivity + rep.dr + rep.mpd, data=full_data, correlation = spaceExp)
+gls.rep.3.exp <- gls(rep.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceExp)
+gls.rep.4.exp <- gls(rep.dr ~ rep.mpd + climate + Elevation + Productivity, data = full_data, correlation= corExp(c(100, 0.1), form =~ V2+V1, nugget=T))
+
+# spaceGaus
+gls.rep.1.gaus <- gls(rep.fdisp ~ rich.rep + climate + Elevation + Productivity + rep.dr + rep.mpd, data=full_data, correlation = spaceGaus)
+gls.rep.2.gaus <- gls(rich.rep ~ climate + Elevation + Productivity + rep.dr + rep.mpd, data=full_data, correlation = spaceGaus)
+gls.rep.3.gaus <- gls(rep.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceGaus)
+gls.rep.4.gaus <- gls(rep.dr ~ rep.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceGaus)
+
+# spaceLin
+gls.rep.1.lin <- gls(rep.fdisp ~ rich.rep + climate + Elevation + Productivity + rep.dr + rep.mpd, data=full_data, correlation=spaceLin)
+gls.rep.2.lin <- gls(rich.rep ~ climate + Elevation + Productivity + rep.dr + rep.mpd, data=full_data, correlation = spaceLin)
+gls.rep.3.lin <- gls(rep.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceLin)
+gls.rep.4.lin <- gls(rep.dr ~ rep.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceLin)
+
+# spaceRatio
+gls.rep.1.ratio <- gls(rep.fdisp ~ rich.rep + climate + Elevation + Productivity + rep.dr + rep.mpd, data=full_data, correlation=spaceRatio)
+gls.rep.2.ratio <- gls(rich.rep ~ climate + Elevation + Productivity + rep.dr + rep.mpd, data=full_data, correlation = spaceRatio)
+gls.rep.3.ratio <- gls(rep.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceRatio)
+gls.rep.4.ratio <- gls(rep.dr ~ rep.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceRatio)
+
+# spaceSpher
+gls.rep.1.spher <- gls(rep.fdisp ~ rich.rep + climate + Elevation + Productivity + rep.dr + rep.mpd, data=full_data, correlation=spaceSpher)
+gls.rep.2.spher <- gls(rich.rep ~ climate + Elevation + Productivity + rep.dr + rep.mpd, data=full_data, correlation = spaceSpher)
+gls.rep.3.spher <- gls(rep.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceSpher)
+gls.rep.4.spher <- gls(rep.dr ~ rep.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceSpher)
+
+# Birds
+# spaceExp
+gls.bird.1.exp <- gls(bird.fdisp ~ climate + Elevation + Productivity+ bird.mpd + bird.rich + bird.dr, data=full_data, correlation = spaceExp)
+gls.bird.2.exp <- gls(bird.rich ~ bird.dr + bird.mpd + climate + Elevation + Productivity, data=full_data, correlation = spaceExp)
+gls.bird.3.exp <- gls(bird.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceExp)
+gls.bird.4.exp <- gls(bird.dr ~ bird.mpd + climate + Elevation + Productivity, data = full_data, correlation = corExp(c(200, 0.1), form =~ V2+V1, nugget=T))
+
+# spaceGaus
+gls.bird.1.gaus <- gls(bird.fdisp ~ climate + Elevation + Productivity+ bird.mpd + bird.rich + bird.dr, data=full_data, correlation = spaceGaus)
+gls.bird.2.gaus <- gls(bird.rich ~ bird.dr + bird.mpd + climate + Elevation + Productivity, data=full_data, correlation = spaceGaus)
+gls.bird.3.gaus <- gls(bird.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceGaus)
+gls.bird.4.gaus <- gls(bird.dr ~ bird.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceGaus)
+
+# spaceLin
+gls.bird.1.lin <- gls(bird.fdisp ~ climate + Elevation + Productivity+ bird.mpd + bird.rich + bird.dr, data=full_data, correlation = spaceLin)
+gls.bird.2.lin <- gls(bird.rich ~ bird.dr + bird.mpd + climate + Elevation + Productivity, data=full_data, correlation = spaceLin)
+gls.bird.3.lin <- gls(bird.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T)) ###
+gls.bird.4.lin <- gls(bird.dr ~ bird.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceLin)
+
+# spaceRatio
+gls.bird.1.ratio <- gls(bird.fdisp ~ climate + Elevation + Productivity+ bird.mpd + bird.rich + bird.dr, data=full_data, correlation = spaceRatio)
+gls.bird.2.ratio <- gls(bird.rich ~ bird.dr + bird.mpd + climate + Elevation + Productivity, data=full_data, correlation = spaceRatio)
+gls.bird.3.ratio <- gls(bird.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceRatio)
+gls.bird.4.ratio <- gls(bird.dr ~ bird.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceRatio)
+
+# spaceSpher
+gls.bird.1.spher <- gls(bird.fdisp ~ climate + Elevation + Productivity+ bird.mpd + bird.rich + bird.dr, data=full_data, correlation = spaceSpher)
+gls.bird.2.spher <- gls(bird.rich ~ bird.dr + bird.mpd + climate + Elevation + Productivity, data=full_data, correlation = spaceSpher)
+gls.bird.3.spher <- gls(bird.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceSpher)
+gls.bird.4.spher <- gls(bird.dr ~ bird.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceSpher)
+
+###
+# Mammals
+# spaceExp
+gls.mam.1.exp <- gls(mam.fdisp ~ mam.rich + climate + Elevation + Productivity + mam.dr + mam.mpd, data=full_data, correlation = spaceExp)
+gls.mam.2.exp <- gls(mam.rich ~ climate + Elevation + Productivity + mam.dr + mam.mpd, data=full_data, correlation = spaceExp)
+gls.mam.3.exp <- gls(mam.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceExp)
+gls.mam.4.exp <- gls(mam.dr ~ mam.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceExp)
+
+# spaceGaus
+gls.mam.1.gaus <- gls(mam.fdisp ~ mam.rich + climate + Elevation + Productivity + mam.dr + mam.mpd, data=full_data, correlation=spaceGaus)
+gls.mam.2.gaus <- gls(mam.rich ~ climate + Elevation + Productivity + mam.dr + mam.mpd, data=full_data, correlation = spaceGaus)
+gls.mam.3.gaus <- gls(mam.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceGaus)
+gls.mam.4.gaus <- gls(mam.dr ~ mam.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceGaus)
+
+# spaceLin
+gls.mam.1.lin <- gls(mam.fdisp ~ mam.rich + climate + Elevation + Productivity + mam.dr + mam.mpd, data=full_data, correlation=spaceLin)
+gls.mam.2.lin <- gls(mam.rich ~ climate + Elevation + Productivity + mam.dr + mam.mpd, data=full_data, correlation = spaceLin)
+gls.mam.3.lin <- gls(mam.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceLin)
+gls.mam.4.lin <- gls(mam.dr ~ mam.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceLin)
+
+# spaceRatio
+gls.mam.1.ratio <- gls(mam.fdisp ~ mam.rich + climate + Elevation + Productivity + mam.dr + mam.mpd, data=full_data, correlation=spaceRatio)
+gls.mam.2.ratio <- gls(mam.rich ~ climate + Elevation + Productivity + mam.dr + mam.mpd, data=full_data, correlation = spaceRatio)
+gls.mam.3.ratio <- gls(mam.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceRatio)
+gls.mam.4.ratio <- gls(mam.dr ~ mam.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceRatio)
+
+# spaceSpher
+gls.mam.1.spher <- gls(mam.fdisp ~ mam.rich + climate + Elevation + Productivity + mam.dr + mam.mpd, data=full_data, correlation=spaceSpher)
+gls.mam.2.spher <- gls(mam.rich ~ climate + Elevation + Productivity + mam.dr + mam.mpd, data=full_data, correlation = spaceSpher)
+gls.mam.3.spher <- gls(mam.mpd ~ climate + Elevation + Productivity,data = full_data, correlation = spaceSpher)
+gls.mam.4.spher <- gls(mam.dr ~ mam.mpd + climate + Elevation + Productivity, data = full_data, correlation = spaceSpher)
+
+```
+
+Selecionando os modelos de melhor ajuste e diagnose das GLS (Preditos vs resíduos)
+```{r}
+# Anfíbios
+AIC(gls.amp.1.exp, gls.amp.1.gaus, gls.amp.1.lin , gls.amp.1.ratio, gls.amp.1.spher) #gls.amp.1.exp
+AIC(gls.amp.2.exp, gls.amp.2.gaus, gls.amp.2.ratio, gls.amp.2.spher, gls.amp.2.lin) # gls.amp.2.exp    
+AIC(gls.amp.3.exp, gls.amp.3.gaus, gls.amp.3.lin , gls.amp.3.ratio, gls.amp.3.spher) # gls.amp.3.exp 
+AIC(gls.amp.4.exp, gls.amp.4.gaus, gls.amp.4.ratio, gls.amp.4.spher, gls.amp.4.lin) # gls.amp.4.ratio  
+
+#Diagnose GLS anfíbios
+amp1exp <- plot(gls.amp.1.exp, main="gls.amp.1.exp")
+amp2exp <- plot(gls.amp.2.exp, main="gls.amp.2.exp")
+amp3exp <- plot(gls.amp.3.exp, main="gls.amp.3.exp")
+amp4ratio <- plot(gls.amp.4.ratio, main="gls.amp.4.lin")
+#combinacao
+plot_grid(amp1exp,amp2exp,amp3exp,amp4ratio, align = "h", rel_widths = c(1, 1),labels = NULL)
+
+#Squamata
+#Conferindo os modelos
+AIC(gls.rep.1.exp, gls.rep.1.gaus, gls.rep.1.lin, gls.rep.1.ratio, gls.rep.1.spher) # gls.rep.1.exp
+AIC(gls.rep.2.exp, gls.rep.2.ratio, gls.rep.2.gaus, gls.rep.2.lin, gls.rep.2.spher) # gls.rep.2.exp
+AIC(gls.rep.3.exp, gls.rep.3.gaus, gls.rep.3.lin, gls.rep.3.ratio, gls.rep.3.spher) #gls.rep.3.exp
+AIC(gls.rep.4.exp, gls.rep.4.gaus, gls.rep.4.lin, gls.rep.4.ratio, gls.rep.4.spher) #gls.rep.4.spher
+
+#Diagnose GLS répteis
+rep1exp <- plot(gls.rep.1.exp, main="gls.rep.1.exp")
+rep2spher <- plot(gls.rep.2.exp, main="gls.rep.2.spher")
+rep3exp <- plot(gls.rep.3.exp, main="gls.rep.3.exp")
+rep4spher <- plot(gls.rep.4.spher, main="gls.rep.4.spher")
+#combinacao
+plot_grid(rep1exp,rep2exp,rep3exp,rep4spher, align = "h", rel_widths = c(1, 1),labels = NULL)
+
+#Birds
+AIC(gls.bird.1.gaus, gls.bird.1.lin, gls.bird.1.ratio, gls.bird.1.spher, gls.bird.1.exp)  #gls.bird.1.exp 
+AIC(gls.bird.2.exp, gls.bird.2.gaus, gls.bird.2.lin, gls.bird.2.ratio, gls.bird.2.spher) #gls.bird.2.ratio
+AIC(gls.bird.3.exp, gls.bird.3.gaus, gls.bird.3.ratio, gls.bird.3.spher, gls.bird.3.lin) #gls.bird.3.ratio best fit model 
+AIC(gls.bird.4.gaus, gls.bird.4.lin, gls.bird.4.ratio, gls.bird.4.spher, gls.bird.4.exp) # gls.bird.4.ratio 
+
+#Diagnose GLS répteis)
+bird1lin <- plot(gls.bird.1.lin, main="gls.bird.1.lin")
+bird2ratio <- plot(gls.bird.2.ratio, main="gls.bird.2.ratio")
+bird3ratio <- plot(gls.bird.3.ratio, main="gls.bird.3.ratio")
+bird4ratio <- plot(gls.bird.4.ratio, main="gls.bird.4.ratio")
+# combinacao
+plot_grid(bird1lin,bird2ratio,bird3ratio,bird4ratio, align = "h", rel_widths = c(1, 1),labels = NULL)
+
+# Mamíferos
+AIC(gls.mam.1.exp, gls.mam.1.gaus, gls.mam.1.lin, gls.mam.1.ratio, gls.mam.1.spher) #gls.mam.1.spher
+AIC(gls.mam.2.exp, gls.mam.2.gaus, gls.mam.2.lin, gls.mam.2.ratio, gls.mam.2.spher) #gls.mam.2.spher
+AIC(gls.mam.3.exp, gls.mam.3.gaus, gls.mam.3.lin, gls.mam.3.ratio, gls.mam.3.spher) #gls.mam.3.spher
+AIC(gls.mam.4.exp, gls.mam.4.gaus, gls.mam.4.lin, gls.mam.4.ratio, gls.mam.4.spher) #gls.mam.4.spher
+
+#Diagnose mammals
+mamspher1 <- plot(gls.mam.1.spher, main="gls.mam.1.spher")
+mamspher2 <- plot(gls.mam.2.spher, main="gls.mam.2.spher")
+mamspher3 <- plot(gls.mam.3.spher, main="gls.mam.3.spher")
+mamspher4 <- plot(gls.mam.4.spher, main="gls.mam.4.spher")
+# combinacao
+plot_grid(mamspher1,mamspher2,mamspher3,mamspher4, align = "h", rel_widths = c(1, 1),labels = NULL)
+
+?plot_grid
+```
+
+Construindo SEM
+```{r}
+# Anfíbios
+anura.psem <- psem(gls.amp.1.exp, gls.amp.2.exp, gls.amp.3.exp, gls.amp.4.lin)
+summary(anura.psem)
+anura.psem$residuals
+
+resid.anura <- residuals(anura.psem)
+
+#Squamata
+reptilia.psem <- psem(gls.rep.1.exp, gls.rep.2.spher, gls.rep.3.exp, gls.rep.4.spher)
+summary(reptilia.psem)
+resid.rep <- residuals(reptilia.psem)
+
+#Birds
+birds.psem <- psem(gls.bird.1.exp, gls.bird.2.exp, gls.bird.3.exp, gls.bird.4.exp)
+summary(birds.psem)
+resid.birds <- residuals(birds.psem)
+
+#Mammals
+mammals.psem <- psem(gls.mam.1.spher, gls.mam.2.spher, gls.mam.3.spher, gls.mam.4.spher)
+summary(mammals.psem)
+resid.mammals <- residuals(mammals.psem)
+
+```
+
+Correlogramas de Moran I com os resíduos da SEM
+```{r}
+# Spatial autocorrelation in predictors variables
+distan <- lets.distmat(full_data[, 27:28])
+
+#Anfíbios
+par(mfrow=c(2,2))
+moran.amp <- lets.correl(resid.anura, distan, 12,
+                     equidistant = FALSE,
+                     plot = TRUE) 
+#Repteis
+moran.rep <- lets.correl(resid.rep, distan, 12,
+                     equidistant = FALSE,
+                     plot = TRUE) 
+#Aves
+moran.birds <- lets.correl(resid.birds, distan, 12,
+                     equidistant = FALSE,
+                     plot = TRUE) 
+#Mammals
+moran.mammals <- lets.correl(resid.mammals, distan, 12,
+                     equidistant = FALSE,
+                     plot = TRUE)
+```
+
+Bônus: será que os tetrápodes acumularam disparidade funcional ao longo tempo? Aqui entramos com os autovetores da PCoA (trait-space)
+```{r}
+amphibia_phy
+reptiles_phy
+birds_phy_list
+mammals_phy
+# Traits
+traits.amphibia.phy
+short_squamata_traits
+short.birds.traits
+mammals_phy_traits
+
+par(mfrow=c(2,2))
+#Disparidade
+## cladewise disparities
+amphibia_phy_rooted <- ape::multi2di(amphibia_phy)
+disparity(phy=amphibia_phy_rooted, data=teste2)
+## disparity through time of entire dataset -- without simulated data
+dttamp<-dtt(phy=amphibia_phy_rooted, data=trait.space.amp, index="avg.sq", nsim=1000, mdi.range=c(0,1),CI=0.95, plot=TRUE)
+
+#Squamata
+## cladewise disparities
+reptiles_phy_rooted <- ape::multi2di(reptiles_phy)
+disparity(phy=reptiles_phy_rooted, data=pcoa.rep)
+## disparity through time of entire dataset -- without simulated data
+dttrep<-dtt(phy=reptiles_phy_rooted, data=trait.space.rep, index="avg.sq", nsim=1000, mdi.range=c(0,1),CI=0.95, plot=TRUE)
+
+#Aves
+birds_phy_rooted <- ape::multi2di(birds_phy_list)
+birds_phy_rooted
+nrow(pcoa.bird)
+## cladewise disparities
+disparity(phy=birds_phy_rooted, data=pcoa.bird)
+## disparity through time of entire dataset -- without simulated data
+dttbird<-dtt(phy=birds_phy_rooted, data=pcoa.bird, index="avg.sq", nsim=1000,mdi.range=c(0,1),CI=0.95, plot=TRUE)
+?dtt
+#Mammals
+## cladewise disparities
+mammals_phy_rooted <- ape::multi2di(mammals_phy)
+disparity(phy=mammals_phy_rooted, data=pcoa.mam)
+## disparity through time of entire dataset -- without simulated data
+dttmam<-dtt(phy=mammals_phy_rooted, data=pcoa.mam, index="avg.sq", nsim=1000, mdi.range=c(0,1),CI=0.95, plot=TRUE)
+###
+```
