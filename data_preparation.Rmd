@@ -6,17 +6,17 @@ output:
   html_document: default
   pdf_document: default
 ---
-### Objetivo
+### Aim
 
-Testar como a **riqueza** de espécies e a **diversidade funcional** estão relacionadas com o tempo evolutivo, taxa de diversificação, produtividade, variáveis climáticas e heterogeneidade de relevo. 
+Test how **species richness** and **functional diversity** are related to evolutionary time, diversification rate, productivity, climatic variables and relief heterogeneity.
 
-### Hipóteses
+### Prediction
 
-Se mecanismos de **não equilíbrio** forem relativamente mais importantes para gerar diferenças na quantidade de espécies entre regiões, espero que **taxas de diversificação e tempo evolutivo estejam positivamente correlacionadas com a riqueza de espécies e diversidade funcional**. Por outro lado, se mecanismos de **equilíbrio** forem mais importantes, espero que **variáveis climáticas presentes, heterogemeodade de relevo e gradientes de produtividade estejam forte e positivamente relacionadas com riqueza de espécies e diversidade funcional**. Ainda, espero que esse efeito seja mais pronunciado em animais ectotérmicos do que em homeotérmicos.
+If **non-equilibrium** mechanisms are relatively more important to generate differences in species numbers between regions, I expect that **diversification rates and evolutionary time are positively correlated with species richness and functional diversity**. On the other hand, if **equilibrium** mechanisms are more important, I expect that **climate variables present, relief heterogeneity and productivity gradients are strongly and positively related to species richness and functional diversity**.
 
 ![](https://github.com/mmoroti/fdvertebrates/blob/main/001.jpg?raw=true){ width=80% }
 
-### Carregando pacotes  
+## Loading packages  
 ```{r loading packages, message = FALSE}
 library(tidyverse) #God of data science
 library(picante) # vegan package included
@@ -26,6 +26,7 @@ library(sf) #spatial data
 library(rgdal) #spatial data
 library(sp) #spatial data
 library(letsR) #spatial data
+library(rgdal) #spatial data
 library(tmap) #maps
 library(piecewiseSEM) #Structural equation model
 library(nlme) # Model selection
@@ -37,10 +38,12 @@ library(phytools) #phylogenetic data
 library(geiger) #dff - functional disparity through the time
 ```
 
-## Preparando e carregando os dados
 
-### Carregando delimitação Mata Atlântica
-Utilizamos o limite consensual proposto por Muylaert et al. 2018.
+## Loading data
+
+### Shape Atlantic Forest
+We used the consensual limit proposed by Muylaert et al. 2018
+
 ```{r loading grid, message=FALSE}
 grid_ma <- readOGR("gridmacro.shp") #432 grids
 grid_ma <- st_as_sf(grid_ma)
@@ -48,19 +51,19 @@ grid_ma <- st_set_crs(grid_ma, 4326)
 id <- grid_ma$id #identificação de cada célula
 ```
 
-### Carregando composição de espécies de vertebrados
+### Vertebrate composition of Atlantic Forest
 
-Matriz de composição foi obtida ao sobrepor os poligonos de extensão de ocorrência com a grid, feito no pacote LetsR (Vilela and Villalobos, 2015). Os dados foram obtidos em diferentes conjuntos de dados disponíveis online e os .shp encontram-se disponíveis no material suplementar.
+Composition matrix was obtained by overlaying the occurrence extension polygons with the grid, made in the LetsR package (Vilela and Villalobos, 2015). The data was obtained from different datasets available online and the .shp are available in the supplementary material.
 
-```{r loading composition data}
+```{r loading composition data, message = FALSE}
 amphibia_full_list <- read.table("composition_amphibia.txt", h=T) #Vanconcelos et al. (2019);
 squamata_full_list <- read.table("composition_reptiles.txt", h=T) #Roll et al. (2017);
 birds_full_list <- read.table("composition_birds.txt", h=T) #BirdLife (2015); 
 mammals_full_list <- read.table("composition_mammals.txt", h=T) #IUCN  
 ```
 
-### Carregando traits
-```{r loading traits data}
+### Loading traits
+```{r loading traits data, message = FALSE}
 amphibia_full_traits <- read.csv2("traits_amphibia.csv") 
 squamata_full_traits <- read.csv2("traits_squamatas.csv", sep=";")
 birds_full_traits <- read.csv2("traits_birds.csv", sep=";")
@@ -68,18 +71,17 @@ mammals_full_traits <- read.csv2("traits_mammals.csv", sep=";")
 
 View(mammals_full_traits)
 ```
-
-### Carregando filogenias
-```{r loading phylogeny data}
+### Loading phylogeny
+```{r loading phylogeny data, message = FALSE}
 amphibia_full_phy <- read.tree("phy_amphibia.tre") 
 squamata_full_phy <- read.tree("phy_squamata.tre")
 birds_full_phy <- read.tree("phy_birds.tre")
 mammals_full_phy <- read.nexus("https://raw.githubusercontent.com/n8upham/MamPhy_v1/master/_DATA/MamPhy_fullPosterior_BDvr_DNAonly_4098sp_topoFree_FBDasZhouEtAl_MCC_v2_target.tre") 
 ```
 
-### Carregando dados abióticos
+### Loading abiotic data
 Aqui vamos extrair os dados abióticos para o centróid da grid
-```{r}
+```{r, message = FALSE}
  #Determine centroids of grid cells 
 sq_grid <- readOGR("gridmacro.shp") 
 grid_center <- coordinates(sq_grid)
@@ -176,11 +178,14 @@ data_abiotic <- rename(abiotic, Elevation = elevation_1KMmd_GMTEDmd, Productivit
 names(data_abiotic)
 ```
 
+
+
+
 ## Data handling 
 
-###Anfíbios
-Ajustando os nomes da composição de espécies de acordo com a filogenia. 
-```{r}
+### Anura
+Adjusting species composition names according to phylogeny. 
+```{r, message = FALSE}
 amphibia_list <- amphibia_full_list[ , order(names(amphibia_full_list))] #Ordem alfabética
 
 #Arrumando nomes
@@ -205,8 +210,8 @@ names(amphibia_list) <- gsub("Scinax_v.signatus", "Scinax_v-signatus", fixed=T, 
 names(amphibia_list) <- gsub("Scinax_strigilata", "Scinax_strigilatus", fixed=T, names(amphibia_list))
 ```
 
-Ajustando os nomes dos traits de acordo com a filogenia. 
-```{r}
+Adjusting trait names according to phylogeny.
+```{r, message = FALSE}
 amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp, "Boana_claresignata", "Bokermannohyla_claresignata")
 amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp, "Boana_clepsydra", "Bokermannohyla_clepsydra")
 amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Proceratophrys_salvatori", "Odontophrynus_salvatori")
@@ -232,8 +237,8 @@ amphibia_full_traits$sp<-str_replace_all(amphibia_full_traits$sp,"Pithecopus_hyp
 amphibia_full_traits$sp<-str_replace_all(amphibia_full_traits$sp,"Pithecopus_megacephalus", "Phyllomedusa_megacephala")
 ```
 
-Selecionando os traits de interesse e removendo os missing data.
-```{r}
+Selecting traits of interest and removing missing data.
+```{r, message = FALSE}
 names(amphibia_full_traits)
 rem.col <- c("Litter_size_min_n","Litter_size_max_n","Reproductive_output_y", "area_km")
 
@@ -245,8 +250,8 @@ short.amphibia.traits <- remove_missing(short.amphibia.traits, vars=names(short.
 nrow(short.amphibia.traits) #494 espécies, 97 linhas excluídas
 ```
 
-Precisamos remover as espécies que tem na lista, mas não estão presentes nos traits
-```{r}
+We need to remove the species that are on the list, but are not present in the traits
+```{r, message = FALSE}
 amphibia_sp <- amphibia_list  %>%
   gather(key="sp",value="count", Adelophryne_pachydactyla:Zachaenus_parvulus) %>% distinct(sp, .keep_all = TRUE)
 nrow(amphibia_sp)#518 espécies (line 210 -ID col)
@@ -259,8 +264,8 @@ rem.col.list <- remove.amp$sp
 short.amphibia.list <- amphibia_list[,!(names(amphibia_list)%in% rem.col.list)]
 ```
 
-Agora, precisamos remover as espécies que tem traits, mas não estão presentes na lista
-```{r}
+Now, we need to remove the species that have traits but are not present in the list.
+```{r, message = FALSE}
 # Removendo espécie duplicada
 #Aplastodiscus_weygoldti aparecendo duas vezes
 short.amphibia.traits <- short.amphibia.traits[-c(33),] 
@@ -272,8 +277,8 @@ amphibia_sp2 <- anti_join(short.amphibia.traits,amphibia_sp, by ="sp")
 short.amphibia.traits <- short.amphibia.traits[!(short.amphibia.traits$sp %in% amphibia_sp2$sp), ]
 ```
 
-Colocando em ordem alfabética e conferindo composição e traits
-```{r}
+Sorting alphabetically and checking composition and traits
+```{r, message = FALSE}
 #Ordem alfabética lista
 short.amphibia.list <- short.amphibia.list[ , order(names(short.amphibia.list))]
 
@@ -284,8 +289,8 @@ ncol(short.amphibia.list) #434 espécies
 nrow(short.amphibia.traits) #434 espécies
 ```
 
-Retirando espécies que estão na comunidade e nos traits, mas não estão na filogenia
-```{r}
+Removing species that are in the community and traits, but not in the phylogeny
+```{r, message = FALSE}
 match.phylo.comm(amphibia_full_phy, short.amphibia.list)
 
 # Precisamos remover na lista e nos traits
@@ -299,20 +304,21 @@ dim(list.amphibia.phy) #421 spp
 traits.amphibia.phy <- short.amphibia.traits[!short.amphibia.traits$sp %in% rem.col.phy,]
 dim(traits.amphibia.phy) #421 spp
 ``` 
+
 Cortar filogenia Jetz e Pyron, 2018 com a lista de espécies
 ```{r}
 amphibia_phy <- prune.sample(list.amphibia.phy, amphibia_full_phy)
 ``` 
 
-Filogenia, composição de espécies e traits de anfíbios prontas!
-```{r}
+Amphibian phylogeny, species composition and traits ready!
+```{r, message = FALSE}
 amphibia_phy #421 tips
 ncol(list.amphibia.phy) #421 spp
 nrow(traits.amphibia.phy) #421 spp
 ```
 
 ### Squamata
-```{r handling data}
+```{r handling data, message = FALSE}
 squamata_full_list
 squamata_full_traits
 squamata_full_phy
@@ -324,8 +330,8 @@ names(squamata_full_list) <- gsub(".", "_", fixed=T, names(squamata_full_list))
 squamata_full_traits$Fossorial <- as.integer(as.character(squamata_full_traits$Fossorial))
 ```
 
-Selecionando traits de interesse e removendo missing data
-```{r}
+Selecting traits of interest and removing missing data
+```{r, message = FALSE}
 # Traits 
 names(squamata_full_traits) 
 vis_miss(squamata_full_traits) #24.8% missing data. atributos reprodutivos são os mais ausentes.
@@ -338,8 +344,8 @@ short_squamata_traits <- remove_missing(short_squamata_traits, vars=names(short_
 vis_miss(short_squamata_traits) #0.0% - 135 spp saíram
 ```
 
-Agora precisamos conferir quais espécies em nossa matriz de composição possuem dados de traits
-```{r}
+Now we need to check which species in our composition matrix have trait data
+```{r, message = FALSE}
 # Lista para join
 # Arrumando para linhas
 reptile_list <- squamata_full_list %>%
@@ -357,8 +363,8 @@ ncol(short_squamata_list) #262
 nrow(short_squamata_traits) #276
 ```
 
-Conferindo espécies que estão sobrando nos traits 
-```{r}
+Checking species that are left over in traits
+```{r, message = FALSE}
 # Tirando o que está a mais nos traits
 
 reptiles_sp2 <- anti_join(short_squamata_traits, reptile_list, by="sp")
@@ -377,8 +383,8 @@ short_squamata_traits <- short_squamata_traits[order(short_squamata_traits$sp),]
 ```
 
 ### Birds
-Conferindo e ajustando banco de dados 
-```{r}
+Checking and adjusting database 
+```{r, message = FALSE}
 birds_full_list # 815 espécies composição original - 1ª coluna ID
 birds_full_phy # 716 tips
 birds_full_traits # 1082 spp
@@ -393,11 +399,10 @@ birds_full_list <- birds_full_list[-c(1,0)]
 birds_full_list <- birds_full_list[ , order(names(birds_full_list))]
 ```
 
-Agora precisamos selecionar os traits de interesse e remover os missing data
-```{r}
+Now we need to select the traits of interest and remove the missing data
+```{r, message = FALSE}
 # Extrainto traits de interesse
 vis_miss(birds_full_traits) # 11.6% missing data
-library(visdat)
 # Vamos remover os dados de reprodução
 rem.col.bir <- c("litter_or_clutch_size_n","litters_or_clutches_per_y")
 
@@ -410,8 +415,8 @@ short_birds_traits <- remove_missing(birds_traits, vars=names(birds_traits))
 nrow(short_birds_traits) # 952 spp aves
 ``` 
 
-Agora precisamos conferir para quais espécies temos dados de traits
-```{r}
+Now we need to check which species we have trait data for
+```{r, message = FALSE}
 #Conferindo quais espécies da lista possuem traits
 # Lista para join
 # Arrumando para linhas
@@ -431,8 +436,8 @@ short_birds_list <- birds_full_list[,!(names(birds_full_list)%in% rem.col.list)]
 ncol(short_birds_list) #708
 ```
 
-Agora precisamos remover as espécies que estão presentes nos traits, mas não na composição
-```{r}
+Now we need to remove species that are present in traits but not in composition
+```{r, message = FALSE}
 # Lista dos short.birds.list ----------------------------
 birds_sp2 <- short_birds_list %>% gather(key="sp",value="count", Accipiter_poliogaster:Zimmerius_acer) %>% distinct(sp, .keep_all = TRUE)
 
@@ -454,8 +459,8 @@ short_birds_list <- short_birds_list[ , order(names(short_birds_list))]
 short_birds_traits <- short_birds_traits[order(short_birds_traits$sp),]
 ```
 
-Verificando dataset e filogenia
-```{r}
+Checking dataset and phylogeny
+```{r, message = FALSE}
 match.phylo.comm(birds_full_phy, short_birds_list)
 
 # removendo espécies da lista e dos traits que não tem na filogenia
@@ -479,16 +484,15 @@ short.birds.traits <- short.birds.traits[order(short.birds.traits$sp),]
 short.birds.traits <- short.birds.traits %>% distinct(sp, .keep_all = TRUE)
 ```
 
-Agrupando com os dados filogenéticos
-```{r}
-birds_phy_list <- prune.sample(short.birds.list, birds_full_phy)
-birds_phy_list #638 espécies 
+Grouping with phylogenetic data
+```{r, message = FALSE}
+birds_phy_list <- prune.sample(short.birds.list, birds_full_phy) #638 espécies 
 # Traits, composição e filogenia ok!
 ```
 
 ### Mammals
-Conferindo e ajustando os dados
-```{r}
+Checking and adjusting the data
+```{r, message = FALSE}
 mammals_full_list
 mammals_full_phy
 mammals_full_traits
@@ -502,8 +506,8 @@ mammals_full_list <- mammals_full_list[ , order(names(mammals_full_list))]
 names(mammals_full_list) <- gsub("Lycalopex", "Pseudalopex", fixed=T, names(mammals_full_list)) 
 ```
 
-Extraindo os traits de interesse e removendo missing data
-```{r}
+Extracting traits of interest and removing missing data
+```{r, message = FALSE}
 #Alterando nomenclatura nos traits
 mammals_full_traits$sp <- str_replace_all(mammals_full_traits$sp,"Lycalopex", "Pseudalopex") #Done
 
@@ -524,8 +528,8 @@ mammals_short_traits <- remove_missing(mammals_short_traits, vars=names(mammals_
 nrow(mammals_short_traits) #excluímos 49 espécies; 276 spp; 
 ``` 
 
-Agora vamos verificar quais espécies da composição possuem traits
-```{r}
+Now let's check which species of the composition have traits
+```{r, message = FALSE}
 # Lista para join
 # Arrumando para linhas
 mammals_list <- mammals_full_list %>%
@@ -541,8 +545,8 @@ mammals_short_list <- mammals_full_list[,!(names(mammals_full_list)%in% rem.col.
 ncol(mammals_short_list) #195 espécies com traits
 ```
 
-Precisamos também retirar as espécies que estão nos traits, mas não estão na matriz de composição
-```{r}
+We also need to remove the species that are in the traits, but are not in the composition matrix
+```{r, message = FALSE}
 mammals_sp2 <- mammals_short_list %>%
   gather(key="sp",value="count", Akodon_azarae:Wilfredomys_oenax) %>% distinct(sp, .keep_all = TRUE)
 
@@ -561,8 +565,8 @@ ncol(mammals_short_list) #195
 #OK!
 ```
 
-Nos mamíferos, a árvore proposta por Upham precisa de alguns ajustes na nomenclatura para darmos prosseguimento nas análises
-```{r}
+In mammals, the tree proposed by Upham needs some nomenclature adjustments to proceed with the analysis.
+```{r, message = FALSE}
 #Arrumando nomenclatura 
 mammals.upham.drop <- drop.tip(mammals_full_phy, "_Anolis_carolinensis") #remove Anolis
 sp_names_full <- mammals.upham.drop$tip.label
@@ -571,20 +575,18 @@ split_names_t <- data.frame(t(split_names))
 new_names <- paste(split_names_t$X1, split_names_t$X2, sep="_")
 
 # check if it is correct
-data.frame(original=mammals.upham$tip.label[-1][1:10], fixed=new_names[1:10])
+data.frame(original=mammals.upham.drop$tip.label[-1][1:10], fixed=new_names[1:10])
 mammals.upham.drop$tip.label <- new_names
-
-View(mammals.upham.drop$tip.label)
 mammals.upham.drop #4175 tips
 ```
 
-Depois podemos fazer o prune.sample com nossa matriz de composição de espécies
-```{r}
+Then we can make prune.sample with our species composition matrix
+```{r, message = FALSE}
 mammals_phy <- prune.sample(mammals_short_list, mammals.upham.drop) #167 tips
 ```
 
-Por fim, retiramos as espécies da composição e dos traits que não possuem posicionamento filogenético
-```{r}
+Finally, we remove species from the composition and traits that do not have a phylogenetic position.
+```{r, message = FALSE}
 # Tirando da lista
 rem.col.phy <- c("Cabassous_tatouay","Callicebus_barbarabrownae","Callicebus_melanochir", "Callithrix_flaviceps", "Dasyprocta_iacki" ,"Dasyprocta_prymnolopha","Dasypus_hybridus", "Dasypus_septemcinctus", "Hylaeamys_oniscus","Leontopithecus_caissara" ,"Leontopithecus_chrysopygus","Leopardus_geoffroyi","Leopardus_guttulus", "Marmosa_paraguayana","Marmosops_bishopi","Monodelphis_unistriata","Nectomys_rattus","Oxymycterus_angularis","Oxymycterus_hispidus","Oxymycterus_roberti","Phaenomys_ferrugineus","Phyllomys_kerri","Phyllomys_medius","Phyllomys_thomasi","Phyllomys_unicolor","Reithrodon_typicus","Sapajus_cay","Tolypeutes_tricinctus","Wilfredomys_oenax")
 
@@ -595,12 +597,20 @@ mammals_phy_list <- mammals_short_list[,!(names(mammals_short_list)%in% rem.col.
 mammals_phy_traits <- short_mammals_traits[!short_mammals_traits$sp %in% rem.col.phy,] #167
 ```
 
-## Taxa de diversificação Equal split 
-Inverso do equal split
 
-###Anfíbios
+
+
+
+
+
+
+## Calculating metrics
+### Diversification rate Equal split 
+#### Anura
 ```{r}
 # ANFÍBIOS
+library(conflicted)
+conflict_prefer("select", "dplyr")
 amphibia_dr <- evol.distinct(amphibia_phy, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
 amphibia_dr$w <- 1/amphibia_dr$w #inverso equal split
 
@@ -631,7 +641,8 @@ hist(dr_amphibia$DR,
      ylab = "Frequency",
      br = 50)
 ```
-### Squamata
+
+#### Squamata
 ```{r}
 reptiles_phy <- prune.sample(short_squamata_list, squamata_full_phy)
 
@@ -663,7 +674,7 @@ rep.dr <- cbind(mean_DR_rep,id=grid_ma$id)
 dr_rep <- as.data.frame(rep.dr)
 dr_rep <- rename(dr_rep, DR = w)
 ```
-### Birds
+#### Birds
 ```{r}
 birds_dr <- evol.distinct(birds_phy_list, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
 birds_dr$w <- 1/birds_dr$w
@@ -684,7 +695,7 @@ mean_DR_birds <- birds_list_matrix%*% DR_bird
 bird.dr <- cbind(mean_DR_birds,id=grid_ma$id)
 dr_bird <- as.data.frame(rep.dr)
 ```
-### Mammals
+#### Mammals
 ```{r}
 mammals_dr <- evol.distinct(mammals_phy, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
 mammals_dr$w <- 1/mammals_dr$w
@@ -714,10 +725,10 @@ dr_mammals <- data.frame(id=grid_ma$id, DR=mam.dr$w)
 dr_mammals
 ```
 
-## Mean Pairwise Distance - Tempo evolutivo
-Calculamos essa medida para cada célula do grid separadamente para cada grupo de vertebrado
+### Mean Pairwise Distance - Evolotionary time
+We calculated this measurement for each grid cell separately for each vertebrate group.
 
-###Anfíbios
+####Anfíbios
 ```{r}
 amp.mpd <- mpd(list.amphibia.phy, cophenetic(amphibia_phy), abundance.weighted=F)
 head(amp.mpd)
@@ -729,7 +740,7 @@ amp.mpd <- as.data.frame(amp.mpd)
 
 mpd_amphibia <- data.frame(id=grid_ma$id, MPD=amp.mpd$amp.mpd)
 ```
-### Squamata
+#### Squamata
 ```{r}
 reptile.mpd <- mpd(short.squamata.list, cophenetic(reptiles_phy), abundance.weighted=F)
 
@@ -741,7 +752,7 @@ reptile.mpd <- as.data.frame(reptile.mpd)
 #Reptile
 mpd_reptile <- data.frame(id=reptile.mpd$id, MPD=reptile.mpd$reptile.mpd)
 ```
-### Birds
+#### Birds
 ```{r}
 birds.mpd <- mpd(short.birds.list, cophenetic(birds_phy_list), abundance.weighted=F)
 
@@ -753,7 +764,7 @@ birds.mpd <- as.data.frame(birds.mpd)
 mpd_birds <- data.frame(id=birds.mpd$id, MPD=birds.mpd$birds.mpd)
 ```
 
-### Mammals
+#### Mammals
 ```{r}
 mammals.mpd <- mpd(mammals_phy_list, cophenetic(mammals_phy), abundance.weighted=F)
 
@@ -765,10 +776,10 @@ mammals.mpd <- as.data.frame(mammals.mpd)
 mammals.mpd <- data.frame(id=grid_ma$id, MPD=mammals.mpd$mammals.mpd)
 ```
 
-## Dispersão funcional
-Agora iremos calcular dispersão funcional (FDisp) dos quatro grupos de vertebrados terrestres. 
+### Functional dispersion
+Now we will calculate functional dispersion (FDis) of the four groups of terrestrial vertebrates. 
 
-###Anfíbios
+####Anura
 ```{r}
 # Primeiro, precisamos preparar as variáveis
 #Atividade circadiana
@@ -818,7 +829,8 @@ range.ext <- data.frame(range.extension=(as.numeric(as.character(traits.amphibia
 quant.traits.amphi <- cbind(bodysize, range.ext)
 sum(is.na(quant.traits.amphi)) #pronto!
 ```
-```{r}
+
+```{r, 10,1}
 #Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
 trait.dist <- dist.ktab(ktab.list.df(list(dist_ativ, dist_habitat, as.data.frame(quant.traits.amphi))), type = c("B","B","Q"), scan=TRUE)
 #10 = S2 coefficient of GOWER & LEGENDRE for multi-choice traits
@@ -837,7 +849,7 @@ disp.func.amphibia <- fdisp(trait.dist, as.matrix(list.amphibia.phy))
 FDis_metric_amphibia <- data.frame(id=grid_ma$id, FDis=disp.func.amphibia$FDis)
 ```
 
-### Squamata
+#### Squamata
 ```{r}
 # Calling as.binary() function
 # Transformando variáveis binárias
@@ -911,7 +923,7 @@ disp.func.reptile <- fdisp(trait.dist.reptile, as.matrix(short.squamata.list))
 
 FDis_metric_reptiles <- data.frame(id=grid_ma$id, FDis=disp.func.reptile$FDis)
 ```
-### Birds
+#### Birds
 ```{r}
 names(short.birds.traits)
 
@@ -970,7 +982,7 @@ disp.func.birds <- fdisp(sqrt(trait.dist.birds), as.matrix(short.birds.list)) #t
 FDis_metric_birds <- data.frame(id=grid_ma$id, FDis=disp.func.birds$FDis)
 ```
 
-### Mammals
+#### Mammals
 ```{r}
 atividade.mammals <- mammals_phy_traits %>% 
   select(sp, cathemeral, crepuscular, diurnal, nocturnal) %>%
@@ -1034,9 +1046,9 @@ disp.func.mammals <- fdisp(trait.dist.mammals, as.matrix(mammals_phy_list)) #tol
 FDis_metric_mammals <- data.frame(id=grid_ma$id, FDis=disp.func.mammals$FDis)
 ```
 
-## Riqueza
-Calculamos para cada comunidade a riqueza
-###Anfíbios
+
+### Richness
+#### Anfíbios
 ```{r}
 rich_amphibia_list <- list.amphibia.phy %>%
   mutate_at(c(names(list.amphibia.phy)), as.numeric) %>%
@@ -1044,7 +1056,7 @@ rich_amphibia_list <- list.amphibia.phy %>%
 
 rich_amphibia <- data.frame(id=grid_ma$id, richness=rich_amphibia_list$Rich)
 ```
-### Squamata
+#### Squamata
 ```{r}
 rich_reptile_list <- short.squamata.list %>%
   mutate_at(c(names(short.squamata.list)), as.numeric) %>%
@@ -1052,7 +1064,7 @@ rich_reptile_list <- short.squamata.list %>%
 
 rich_reptile <- data.frame(id=grid_ma$id, richness=rich_reptile_list$Rich)
 ```
-### Birds
+#### Birds
 ```{r}
 rich_birds_list <- short.birds.list %>%
   mutate_at(c(names(short.birds.list)), as.numeric) %>%
@@ -1061,7 +1073,7 @@ dim(rich_birds_list) #coluna riqueza
 
 rich_birds <- data.frame(id=grid_ma$id, richness=rich_birds_list$Rich)
 ```
-### Mammals
+#### Mammals
 ```{r}
 rich_mammals_list <-mammals_phy_list %>%
   mutate_at(c(names(mammals_phy_list )), as.numeric) %>%
@@ -1071,7 +1083,14 @@ rich_mammals_list
 rich_mammals <- data.frame(id=grid_ma$id, richness=rich_mammals_list$Rich)
 ```
 
-## Agrupando os dados e salvando .shp 
+
+
+
+
+
+
+## Preparing the data
+### Grouping the data and saving .shp 
 ```{r}
 #Anfíbios
 amphibia_data <- full_join(grid_ma, dr_amphibia, by = "id")
@@ -1114,8 +1133,7 @@ mammals_data <- st_set_crs(mammals_data, 4326)
 st_write(mammals_data, "mammals_data.shp", append=F)
 ``` 
 
-
-## Full dataset
+### Full dataset
 ```{r}
 # Unir os dados
 full_biotic <- data.frame(id=amphibia_data$id, amp.fdisp=amphibia_data$FDis, amp.dr=amphibia_data$DR, amp.mpd=amphibia_data$MPD, rich.amp=amphibia_data$richness, rep.fdisp=reptile_data$FDis,rep.dr=reptile_data$DR,rep.mpd=reptile_data$MPD, rich.rep=reptile_data$richness, mam.fdisp=mammals_data$FDis, mam.dr=mammals_data$DR, mam.mpd=mammals_data$MPD, mam.rich=mammals_data$richness,bird.fdisp=birds_data$FDis, bird.rich=birds_data$richness,bird.mpd=birds_data$MPD,bird.dr=birds_data$w)
@@ -1128,6 +1146,9 @@ full_data <- full_join(full_biotic, data_abiotic, by="id")
 full_data <- full_join(full_data, full, by="id")
 full_data <- remove_missing(full_data) #424 comunidades - 8 comunidades retiradas pois estavam sem dados climáticos
 ```
+
+
+
 
 
 
@@ -1449,8 +1470,23 @@ biplot(bird.trait.space)
 biplot(mam.trait.space)
 ```
 
+```{r}
+# Melhorando visualização 
+pca_anura <- prcomp(trait.dist, scale. = TRUE)
+anura.pca <- autoplot(pca_anura)
+pca_rep <- prcomp(trait.dist.reptile, scale. = TRUE)
+squamata.pca <- autoplot(pca_rep)
+pca_bird <- prcomp(trait.dist.birds, scale. = TRUE)
+birds.pca <-autoplot(pca_bird)
+pca_mammal <- prcomp(trait.dist.mammals, scale. = TRUE)
+mammals.pca <- autoplot(pca_mammal)
+
+plot_grid(anura.pca, squamata.pca, birds.pca, mammals.pca, align = "h", rel_widths = c(1, 1),labels = "AUTO")
+
+```
+
 ### Structural equation model
-SEM é uma ferramenta útil para quantificar efeitos diretos e indiretos de cada variável preditora na variável resposta. Primeiro, vamos criar uma variável latente chamada clima com os dados obtidos do CHELSA
+SEM is a useful tool for quantifying direct and indirect effects of each predictor variable on the response variable. First, let's create a latent variable called weather with the data obtained from CHELSA
 ```{r}
 # Construímos um modelo linear das variáveis que serão preditas pelo clima
 ml <- lm(bird.rich + rich.rep + rep.fdisp + mam.fdisp + bird.fdisp + amp.fdisp + bird.mpd + amp.mpd + rep.mpd + mam.mpd + rich.amp + rich.rep + bird.dr + mam.dr + amp.dr + rep.dr ~ BIO02+BIO03+BIO04+BIO07+BIO11+BIO15+BIO17, data=full_data)
@@ -1746,8 +1782,9 @@ moran.mammals <- lets.correl(resid.mammals, distan, 12,
                      plot = TRUE)
 ```
 
-Bônus: será que os tetrápodes acumularam disparidade funcional ao longo tempo? Aqui entramos com os autovetores da PCoA (trait-space)
+### Disparity through the time
 ```{r}
+
 amphibia_phy
 reptiles_phy
 birds_phy_list
@@ -1759,13 +1796,17 @@ short.birds.traits
 mammals_phy_traits
 
 par(mfrow=c(2,2))
+
 #Disparidade
+#Aqui entramos com os autovetores da PCoA (trait-space)
 ## cladewise disparities
 amphibia_phy_rooted <- ape::multi2di(amphibia_phy)
 disparity(phy=amphibia_phy_rooted, data=teste2)
 ## disparity through time of entire dataset -- without simulated data
 dttamp<-dtt(phy=amphibia_phy_rooted, data=trait.space.amp, index="avg.sq", nsim=1000, mdi.range=c(0,1),CI=0.95, plot=TRUE)
+library(picante)
 
+?dtt
 #Squamata
 ## cladewise disparities
 reptiles_phy_rooted <- ape::multi2di(reptiles_phy)
