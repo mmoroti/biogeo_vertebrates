@@ -26,8 +26,8 @@ setwd(wd)
 
 # Set your tree file and geography file names
 #trfn = "tree5.newick"
-trfn = "amphibia_biogeo.new"
-geogfn = "Beck_PBG_tree6_areas.txt"
+trfn = "assemblage_age/birds_biogeo.new"
+geogfn = "assemblage_age/geo_area_birds.data"
 
 #######################################################
 # Load the tree
