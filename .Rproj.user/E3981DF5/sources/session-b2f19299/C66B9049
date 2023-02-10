@@ -1,0 +1,26 @@
+{
+    "id": "C66B9049",
+    "path": "E:/repos/biogeo_vertebrates-main/data_preparation.Rmd",
+    "project_path": "data_preparation.Rmd",
+    "type": "r_markdown",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1674858307711.0,
+    "source_on_save": false,
+    "relative_order": 7,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "506,3",
+        "scrollLine": "493"
+    },
+    "folds": "81|24|182|0|\n185|9|318|0|\n187|23|210|0|\n213|23|237|0|\n240|23|250|0|\n267|23|277|0|\n280|23|289|0|\n319|12|383|0|\n333|23|344|0|\n384|9|491|0|\n",
+    "lastKnownWriteTime": 1646064094,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1675983051704,
+    "read_only": false,
+    "read_only_alternatives": []
+}
