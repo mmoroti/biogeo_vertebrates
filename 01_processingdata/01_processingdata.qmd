@@ -1,0 +1,753 @@
+---
+title: "01_processing_data"
+author: "MatheusMoroti"
+format: html
+editor: visual
+---
+
+#### Data processing
+
+In this script we prepare the data for subsequent analyses. Here we just prepare the nomenclatures and load the files of interest.
+
+##### 0.0. Load libraries
+
+```{r}
+library(tidyverse) # data science tools
+library(visdat) # missing data
+library(picante) # vegan package included
+library(phytools) #phylogenetic data
+library(sf) #spatial data
+library(rgdal) #spatial data
+```
+
+##### 0.1. Loading files
+
+###### 0.1.1. Grid of Atlantic forest
+
+```{r}
+grid_ma <- readOGR("Shapefiles/gridmacro.shp") #432 grids
+grid_center <- coordinates(grid_ma) # obtain center of grid
+grid_ma <- st_as_sf(grid_ma) # convert to sf object
+grid_ma <- st_set_crs(grid_ma, 4326) # convert to WGS84
+id <- grid_ma$id #cell id
+```
+
+###### 0.1.2. Climatic, productivity and altitude variables.
+
+```{r, message = FALSE}
+# Climate data from CHELSA
+Bio01 <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio1_1981-2010_V.2.1.tif")
+Bio02 <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio2_1981-2010_V.2.1.tif") #Mean Diurnal Temperature Range
+Bio03 <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio3_1981-2010_V.2.1.tif") #Isothermality
+Bio04 <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio4_1981-2010_V.2.1.tif") #Temperature Seasonality
+Bio07 <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio7_1981-2010_V.2.1.tif") #Temperature Annual Range
+Bio11 <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio11_1981-2010_V.2.1.tif") #Mean Temperature of Coldest Quarter
+Bio12 <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio12_1981-2010_V.2.1.tif")
+Bio15 <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio15_1981-2010_V.2.1.tif") #Precipitation Seasonality
+Bio17 <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio17_1981-2010_V.2.1.tif") #Precipitation of Driest Quarter
+
+# Primary Production
+# Numerical Terradynamic Simulation Group 
+prod <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_npp_1981-2010_V.2.1.tif")
+
+#Topography
+#EarthEnv (https://www.earthenv.org/)
+# dataset elevation, aggregation median, sources gmted2010, resolution 1km
+topography <- raster("abiotic_data/elevation_1KMmd_GMTEDmd.tif")
+```
+
+###### 0.1.3. Traits
+
+```{r loading traits data, message = FALSE}
+amphibia_full_traits <- read.csv2("trait_data/traits_amphibia.csv") 
+squamata_full_traits <- read.csv2("trait_data/traits_squamatas.csv", sep=";")
+birds_full_traits <- read.csv2("trait_data/traits_birds.csv", sep=";")
+mammals_full_traits <- read.csv2("trait_data/traits_mammals.csv", sep=";")
+```
+
+###### 0.1.4. Assemblages composition
+
+```{r loading composition data, message = FALSE}
+amphibia_full_list <- read.table("list_of_species/composition_amphibia.txt", h=T) #Vanconcelos et al. (2019);
+squamata_full_list <- read.table("list_of_species/composition_reptiles.txt", h=T) #Roll et al. (2017);
+birds_full_list <- read.table("list_of_species/composition_birds.txt", h=T) #BirdLife (2015); 
+mammals_full_list <- read.table("list_of_species/composition_mammals.txt", h=T) #IUCN  
+```
+
+###### 0.1.5. Phylogenetic tree
+
+```{r loading phylogeny data, message = FALSE}
+amphibia_full_phy <- read.tree("phylogeny/phy_amphibia.tre") 
+squamata_full_phy <- read.tree("phylogeny/phy_reptile.tre")
+birds_full_phy <- read.nexus("phylogeny/consensus_mcct.tre")
+mammals_full_phy <- read.nexus("https://raw.githubusercontent.com/n8upham/MamPhy_v1/master/_DATA/MamPhy_fullPosterior_BDvr_DNAonly_4098sp_topoFree_FBDasZhouEtAl_MCC_v2_target.tre") 
+```
+
+##### 1.0. Data handling
+Here we made some adjustments to the nomenclature to match traits, phylogenies and assemblage composition and preparing the non-equilibrium variables (Climatic, productivity and topography heterogene).
+
+##### 1.1. Change nomenclatures names and match with phylogeny and traits
+
+###### 1.1.1 Amphibia
+
+Adjusting species composition names according to phylogeny.
+
+```{r, message = FALSE}
+amphibia_list <- amphibia_full_list[ , order(names(amphibia_full_list))] #Ordem alfabética
+
+#Arrumando nomes
+names(amphibia_list) <- gsub("Scinax_x.signatus", "Scinax_x-signatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Scinax_v.signatus", "Scinax_v-signatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Brachycephalus_margariatus", "Brachycephalus_margaritatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Scinax_strigilata", "Scinax_strigilatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Pithecopus", "Phyllomedusa", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Ololygon", "Scinax", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Boana", "Hypsiboas", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Phyllomedusa_megacephalus", "Phyllomedusa_megacephala", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Phyllomedusa_nordestinus", "Phyllomedusa_nordestina", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Phyllomedusa_azureus", "Phyllomedusa_azurea", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Lithobates_palmipes", "Rana_palmipes", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Scinax_x.signatus", "Scinax_x-signatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Brachycephalus_margariatus", "Brachycephalus_margaritatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Aparasphenodon_ararapa", "Aparasphenodon_arapapa", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Agalychnis_aspera", "Hylomantis_aspera", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Physalaemus_nattereri", "Eupemphix_nattereri", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Agalychnis_granulosa", "Hylomantis_granulosa", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Scinax_v.signatus", "Scinax_v-signatus", fixed=T, names(amphibia_list))
+names(amphibia_list) <- gsub("Scinax_strigilata", "Scinax_strigilatus", fixed=T, names(amphibia_list))
+View(amphibia_list)
+```
+
+Adjusting trait names according to phylogeny.
+
+```{r, message = FALSE}
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp, "Boana_claresignata", "Bokermannohyla_claresignata")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp, "Boana_clepsydra", "Bokermannohyla_clepsydra")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Proceratophrys_salvatori", "Odontophrynus_salvatori")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Scinax_v_signatus", "Scinax_v-signatus")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Scinax_x_signatus", "Scinax_x-signatus")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Boana_bandeirantes", "Hypsiboas_bandeirantes")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Boana_poaju", "Hypsiboas_poaju")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Boana_paranaiba", "Hypsiboas_paranaiba")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Physalaemus_nattereri", "Eupemphix_nattereri")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Agalychnis_aspera", "Hylomantis_aspera")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Agalychnis_granulosa", "Hylomantis_granulosa")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Lithobates_palmipes", "Rana_palmipes")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Pithecopus_azureus", "Phyllomedusa_azurea")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Pithecopus_ayeaye", "Phyllomedusa_ayeaye")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Pithecopus_nordestinus", "Phyllomedusa_nordestina")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Pithecopus_rohdei", "Phyllomedusa_rohdei")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Pithecopus_rohdei", "Phyllomedusa_rohdei")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Aparasphenodon_ararapa", "Aparasphenodon_arapapa")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Ololygon_tripui", "Scinax_tripui")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Ololygon_cosenzai", "Scinax_cosenzai")
+amphibia_full_traits$sp <- str_replace_all(amphibia_full_traits$sp,"Ololygon_strigilata", "Scinax_strigilatus")
+amphibia_full_traits$sp<-str_replace_all(amphibia_full_traits$sp,"Pithecopus_hypochondrialis", "Phyllomedusa_hypochondrialis")
+amphibia_full_traits$sp<-str_replace_all(amphibia_full_traits$sp,"Pithecopus_megacephalus", "Phyllomedusa_megacephala")
+```
+
+Selecting traits of interest and removing missing data.
+
+```{r, message = FALSE}
+#names(amphibia_full_traits)
+rem.col <- c("area_m", "Brood.Size")
+
+short.amphibia.traits <- amphibia_full_traits[,!(names(amphibia_full_traits)%in% rem.col)]
+#names(short.amphibia.traits)
+
+# Removendo missing data
+short_amphibia_traits <- remove_missing(short.amphibia.traits, vars=names(short.amphibia.traits))
+nrow(short.amphibia.traits) #494 spp, 97 exclude spp.
+
+# duplicate spp.
+#Aplastodiscus_weygoldti show two times
+short_amphibia_traits <- short_amphibia_traits[-c(34),] 
+```
+
+We need to remove the species that are on the list, but are not present in the traits
+
+```{r, message = FALSE}
+amphibia_sp <- amphibia_list  %>%
+  gather(key="sp",value="count", Adelophryne_pachydactyla:Zachaenus_parvulus) %>% distinct(sp, .keep_all = TRUE)
+nrow(amphibia_sp)#518 spp (line 210 -ID col)
+
+remove.amp <- anti_join(amphibia_sp,short_amphibia_traits, by ="sp")
+nrow(remove.amp) #Losing 85 spp in composition list (~5%)
+
+#Retirando
+rem.col.list <- remove.amp$sp
+short.amphibia.list <- amphibia_list[,!(names(amphibia_list)%in% rem.col.list)]
+```
+
+Now, we need to remove the species that have traits but are not present in the list.
+
+```{r, message = FALSE}
+#Espécies que estão sobrando nos traits
+amphibia_sp2 <- anti_join(short_amphibia_traits,amphibia_sp, by ="sp")
+
+# Retirando por condição dos vetores
+short_amphibia_traits <- short_amphibia_traits[!(short_amphibia_traits$sp %in% amphibia_sp2$sp), ]
+```
+
+Sorting alphabetically and checking composition and traits
+
+```{r, message = FALSE}
+#Ordem alfabética lista
+short.amphibia.list <- short.amphibia.list[ , order(names(short.amphibia.list))]
+
+#Ordem alfabética traits
+short.amphibia.traits <- short.amphibia.traits[order(short.amphibia.traits$sp),]
+
+ncol(short.amphibia.list) #434 espécies
+nrow(short_amphibia_traits) #434 espécies
+```
+
+Removing species that are in the community and traits, but not in the phylogeny
+
+```{r, message = FALSE}
+match.phylo.comm(amphibia_full_phy, short.amphibia.list)
+
+# Precisamos remover na lista e nos traits
+rem.col.phy <- c("Brachycephalus_sulfuratus", "Crossodactylus_fransciscanus","Crossodactylus_timbuhy","Dendropsophus_bromeliaceus","Eleutherodactylus_bilineatus","Melanophryniscus_milanoi","Melanophryniscus_xanthostomus","Proceratophrys_mantiqueira","Proceratophrys_pombali","Pseudopaludicola_atragula","Pseudopaludicola_pocoto","Scinax_strigilatus","Trachycephalus_typhonius")
+
+#Retirando na lista
+list.amphibia.phy <- short.amphibia.list[,!(names(short.amphibia.list)%in% rem.col.phy)]
+dim(list.amphibia.phy) #421 spp
+
+#Retirando nos traits
+traits.amphibia.phy <- short_amphibia_traits[!short_amphibia_traits$sp %in% rem.col.phy,]
+dim(traits.amphibia.phy) #421 spp
+```
+
+Cortar filogenia Jetz e Pyron, 2018 com a lista de espécies
+
+```{r}
+amphibia_phy <- prune.sample(list.amphibia.phy, amphibia_full_phy)
+```
+
+Amphibian phylogeny, species composition and traits ready!
+
+```{r, message = FALSE}
+amphibia_phy #421 tips
+ncol(list.amphibia.phy) #421 spp
+nrow(traits.amphibia.phy) #421 spp
+```
+
+Amphibia phylogeny complete and species composition to sensibility analysis
+
+```{r, message = FALSE}
+ncol(amphibia_list) # 519 with id - 518 spp. to calculing Richness
+phy_amphibia_all <- prune.sample(amphibia_list,amphibia_full_phy) # 487 tips or spp. to DR and AA
+# exclude spp. on traits list without in composition list
+exclude_traits <- anti_join(short.amphibia.traits,amphibia_sp, by ="sp")
+# Retirando por condição dos vetores
+amphibia_traits_na <- short.amphibia.traits[!(short.amphibia.traits$sp %in% exclude_traits$sp), ]
+```
+
+###### 1.1.2 Squamata
+
+```{r handling data, message = FALSE}
+squamata_full_list
+squamata_full_traits
+squamata_full_phy
+
+#Primeiro precisamos fazer alguns ajustes no dataset
+#Trocando . por _
+names(squamata_full_list) <- gsub(".", "_", fixed=T, names(squamata_full_list))
+#Transformando variável character em integer
+squamata_full_traits$Fossorial <- as.integer(as.character(squamata_full_traits$Fossorial))
+```
+
+Selecting traits of interest and removing missing data
+
+```{r, message = FALSE}
+# Traits 
+names(squamata_full_traits) 
+#vis_miss(squamata_full_traits) #24.8% missing data
+rem.col.rep <- c("litter_or_clutch_size_n","litters_or_clutches_per_y", "range_m2") #remover essas colunas
+short.squamata.traits <- squamata_full_traits[,!(names(squamata_full_traits)%in% rem.col.rep)]
+#vis_miss(short_squamata_traits) 
+
+# Removendo missing data
+short_squamata_traits <- remove_missing(short.squamata.traits, vars=names(short.squamata.traits))
+vis_miss(short_squamata_traits) #0.0% - 134 spp saíram
+```
+
+Now we need to check which species in our composition matrix have trait data
+
+```{r, message = FALSE}
+# Lista para join
+# Arrumando para linhas
+reptile_list <- squamata_full_list %>%
+  gather(key="sp",value="count", Acanthochelys_radiolata:Xenopholis_undulatus) %>% distinct(sp, .keep_all = TRUE)
+
+# Anti join: espécies que estão no x, mas não estão no y (x,y)
+reptiles_sp <- anti_join(reptile_list, short_squamata_traits, by="sp")
+
+#Retirando espécies que saíram nos traits
+rem.col.list <- reptiles_sp$sp
+
+short_squamata_list <- squamata_full_list[,!(names(squamata_full_list)%in% rem.col.list)]
+
+ncol(short_squamata_list) #262 without id
+nrow(short_squamata_traits) #277
+```
+
+Checking species that are left over in traits
+
+```{r, message = FALSE}
+reptiles_sp2 <- anti_join(short_squamata_traits, reptile_list, by="sp")
+
+# remove by vector
+short_squamata_traits <- short_squamata_traits[!(short_squamata_traits$sp %in% reptiles_sp2$sp), ]
+
+#ncol(short_squamata_list) #262sp - +id 
+#nrow(short_squamata_traits) #262spp
+
+#Ordem alfabética lista
+short_squamata_list <- short_squamata_list[ , order(names(short_squamata_list))]
+
+#Ordem alfabética traits
+short_squamata_traits <- short_squamata_traits[order(short_squamata_traits$sp),]
+```
+
+Prune sample with list
+
+```{r}
+squamata_phy <- prune.sample(short_squamata_list, squamata_full_phy)
+```
+
+Squamata harmonized dataset with phylogeny, traits and species composition harmonized
+
+```{r}
+# Harmonized dataset
+squamata_phy # 262 spp
+ncol(short_squamata_list) #262 spp - +id 
+nrow(short_squamata_traits) #262spp
+```
+
+Squamata phylogeny, traits and species composition datasets completes to sensibility analysis
+
+```{r}
+# Non harmonized dataset
+full_squamata_phy <- prune.sample(squamata_full_list,squamata_full_phy) # 403 spp
+
+ncol(squamata_full_list) #403 sp - +id 
+
+# exclude spp. on traits list without in composition list
+exclude_traits <- anti_join(short.squamata.traits,reptile_list, by ="sp")
+# Retirando por condição dos vetores
+squamata_traits_na <- short.squamata.traits[!(short.squamata.traits$sp %in% exclude_traits$sp), ]
+nrow(squamata_traits_na) #380 spp
+```
+
+###### 1.1.3 Birds
+
+```{r, message = FALSE}
+# birds_full_list # 815 espécies composição original - 1ª coluna ID
+# birds_full_phy # 9993 tips
+# birds_full_traits # 1082 spp
+
+#Trocando . por _ nos nomes
+names(birds_full_list) <- gsub(".", "_", fixed=T, names(birds_full_list))
+
+#Retirando coluna ID 
+birds_full_list <- birds_full_list[-c(1,0)]
+
+#Facilitando o trabalho, colocando em ordem alfabética
+birds_full_list <- birds_full_list[ , order(names(birds_full_list))]
+```
+
+Now we need to select the traits of interest and remove the missing data
+
+```{r, message = FALSE}
+# Extrainto traits de interesse
+#vis_miss(birds_full_traits) # 11.6% missing data
+# Vamos remover os dados de reprodução
+rem.col.bir <- c("litter_or_clutch_size_n","litters_or_clutches_per_y", "range_m2")
+
+birds_traits <- birds_full_traits[,!(names(birds_full_traits)%in% rem.col.bir)]
+
+# Retirando traits NA's
+short_birds_traits <- remove_missing(birds_traits, vars=names(birds_traits))
+
+dim(short_birds_traits) # 977 spp aves
+```
+
+Now we need to check which species we have trait data for
+
+```{r, message = FALSE}
+#Conferindo quais espécies da lista possuem traits
+# Lista para join
+# Arrumando para linhas
+birds_list <- birds_full_list %>%
+  gather(key="sp",value="count", Accipiter_poliogaster:Zimmerius_acer) %>% distinct(sp, .keep_all = TRUE)
+
+# Conferindo espécies que saíram no short.traits (sp NA's)
+# Anti join: espécies que estão no x, mas não estão no y (x,y)
+birds_sp <- anti_join(birds_list, short_birds_traits, by="sp")
+
+#Retirando espécies que saíram nos traits
+rem.col.list <- birds_sp$sp
+short_birds_list <- birds_full_list[,!(names(birds_full_list)%in% rem.col.list)]
+
+ncol(short_birds_list) #708
+```
+
+Now we need to remove species that are present in traits but not in composition
+
+```{r, message = FALSE}
+# Lista dos short.birds.list ----------------------------
+birds_sp2 <- short_birds_list %>% gather(key="sp",value="count", Accipiter_poliogaster:Zimmerius_acer) %>% distinct(sp, .keep_all = TRUE)
+
+rem.col.names <- anti_join(short_birds_traits,birds_list,by="sp")
+short_birds_traits <- short_birds_traits[!(short_birds_traits$sp %in% rem.col.names$sp), ]
+
+nrow(short_birds_traits) #920
+ncol(short_birds_list) #708
+#OK
+
+# Colocando em ordem alfabética
+#Ordem alfabética lista
+short_birds_list <- short_birds_list[ , order(names(short_birds_list))]
+
+#Ordem alfabética traits
+short_birds_traits <- short_birds_traits[order(short_birds_traits$sp),]
+```
+
+Grouping with phylogenetic data
+
+```{r, message = FALSE}
+birds_phy_list <- prune.sample(short_birds_list, birds_full_phy) #638 espécies 
+# Traits, composição e filogenia ok!
+```
+
+Removing composition based on phylogeny
+
+```{r, message = FALSE}
+# removendo espécies da lista e dos traits que não tem na filogenia
+rem.col.phy <- c("Agelaioides_fringillarius","Amazilia_sapphirina" , "Anabacerthia_lichtensteini" ,"Antrostomus_rufus" , "Aramides_cajaneus" ,"Asthenes_moreirae" ,"Atticora_tibialis","Automolus_lammi" , "Basileuterus_auricapilla", "Buteogallus_coronatus" ,"Calidris_subruficollis", "Cantorchilus_leucotis" ,"Cantorchilus_longirostris" ,"Celeus_galeatus" ,"Celeus_ochraceus" ,"Celeus_tinnunculus" , "Ceratopipra_rubrocapilla"  ,"Clibanornis_rectirostris" , "Elaenia_sordida", "Eupsittula_aurea" ,"Eupsittula_cactorum"  ,"Formicivora_acutirostris", "Formicivora_paludicola" ,"Geranoaetus_albicaudatus" , "Griseotyrannus_aurantioatrocristatus","Herpsilochmus_scapularis" , "Hirundinea_bellicosa","Hydropsalis_maculicaudus", "Icterus_pyrrhopterus", "Islerothraupis_cristata","Lipaugus_ater"   ,"Lipaugus_conditus" , "Mareca_sibilatrix"  ,"Microspingus_cabanisi", "Myiothlypis_flaveola" , "Myiothlypis_leucoblephara","Myiothlypis_leucophrys" ,"Myrmoderus_ruficauda"   , "Nyctipolus_hirundinaceus" ,"Ortalis_araucuan"   ,"Ortalis_squamata", "Orthopsittaca_manilatus","Parabuteo_leucorrhous","Paraclaravis_geoffroyi","Phalcoboenus_chimango", "Pheugopedius_genibarbis" ,"Philohydor_lictor" ,"Pionus_reichenowi", "Pipraeidea_bonariensis"  , "Psittacara_acuticaudatus" ,"Psittacara_leucophthalmus"  ,"Pygochelidon_melanoleuca"  ,"Rhopias_gularis"   , "Rupornis_magnirostris" , "Sarkidiornis_sylvicola","Sclerurus_cearensis" , "Spinus_yarrellii"  ,"Sporophila_angolensis" ,"Stephanoxis_loddigesii" , "Stigmatura_bahiae"  , "Synallaxis_cinerea" , "Synallaxis_hellmayri"  , "Systellura_longirostris" ,"Tangara_brasiliensis"  ,"Tangara_cyanomelas" , "Tangara_flava" , "Tangara_ornata","Tangara_palmarum" ,"Tangara_sayaca"  ,"Vireo_chivi" ,"Xiphorhynchus_guttatoides")
+
+#Composição de espécies
+short.birds.list <- short_birds_list[,!(names(short_birds_list)%in% rem.col.phy)]
+dim(short.birds.list) #638
+
+#Traits
+#Removendo espécies dos traits
+short.birds.traits <- short_birds_traits[!short_birds_traits$sp %in% rem.col.phy,]
+dim(short.birds.traits) #829 spp nos traits
+
+#Ordenando 
+short.birds.list <- short.birds.list[ , order(names(short.birds.list))]
+short.birds.traits <- short.birds.traits[order(short.birds.traits$sp),]
+
+#Removendo nomes em duplicada
+short.birds.traits <- short.birds.traits %>% distinct(sp, .keep_all = TRUE)
+```
+
+Birds harmonized dataset with phylogeny, traits and species composition harmonized
+
+```{r}
+# Harmonized dataset
+birds_phy_list # 638 spp
+ncol(short.birds.list) #638 spp - +id 
+nrow(short.birds.traits) #638spp
+```
+
+Birds phylogeny, traits and species composition datasets completes to sensibility analysis
+
+```{r}
+# Non harmonized dataset
+full_birds_phy <- prune.sample(birds_full_list,birds_full_phy) # 695 spp.
+ncol(birds_full_list) # 815 spp.
+
+# exclude spp. on traits list without in composition list
+birds_traits_short <- birds_traits %>% distinct(sp, .keep_all = TRUE)
+exclude_traits <- anti_join(birds_traits_short,birds_list, by ="sp")#remove duplicates
+# Retirando por condição dos vetores
+birds_traits_na <- birds_traits_short[!(birds_traits_short$sp %in% exclude_traits$sp), ]
+nrow(birds_traits_na) #777 spp
+```
+
+###### 1.1.4 Mammals
+
+Checking and adjusting the data
+
+```{r, message = FALSE}
+#mammals_full_list
+#mammals_full_phy
+#mammals_full_traits
+
+#Trocando . por _
+names(mammals_full_list) <- gsub(".", "_", fixed=T, names(mammals_full_list))
+#Colocando em ordem alfabética
+mammals_full_list <- mammals_full_list[ , order(names(mammals_full_list))]
+
+#Mudando na composição
+names(mammals_full_list) <- gsub("Lycalopex", "Pseudalopex", fixed=T, names(mammals_full_list)) 
+```
+
+Extracting traits of interest and removing missing data
+
+```{r, message = FALSE}
+#Alterando nomenclatura nos traits
+mammals_full_traits$sp <- str_replace_all(mammals_full_traits$sp,"Lycalopex", "Pseudalopex") #Done
+
+# Extrainto traits de interesse
+#vis_miss(mammals_full_traits) # 10.9% missing data
+
+#Vamos remover os repetidos e tamanho de prole
+rem.col <- c("Littersize","LittersPerYear","foraging_stratum","activity_cycle","area_m2")
+
+mammals.short.traits <- mammals_full_traits[,!(names(mammals_full_traits)%in% rem.col)]
+
+# 5.6% missing data, remove.missing 590spp
+# Usando função remoção NA's ggplot2::remove_missing
+#View(is.na(short.amphibia.traits$Body_size_mm))
+
+mammals_short_traits <- remove_missing(mammals.short.traits, vars=names(mammals.short.traits))
+mammals_short_traits <- mammals_short_traits[-1,]
+nrow(mammals_short_traits) #excluímos 49 espécies; 276 spp; 
+```
+
+Now let's check which species of the composition have traits
+
+```{r, message = FALSE}
+# Lista para join
+# Arrumando para linhas
+mammals_list <- mammals_full_list %>%
+  gather(key="sp",value="count", Abrawayaomys_chebezi:Wilfredomys_oenax) %>% distinct(sp, .keep_all = TRUE)
+
+mammals_sp <- anti_join(mammals_list, mammals_short_traits, by="sp")
+nrow(mammals_sp) #41 espécies 
+
+#Retirando espécies da composição que não possuem traits
+rem.col.list <- mammals_sp$sp
+
+mammals_short_list <- mammals_full_list[,!(names(mammals_full_list)%in% rem.col.list)]
+ncol(mammals_short_list) #194 espécies com traits
+```
+
+We also need to remove the species that are in the traits, but are not in the composition matrix
+
+```{r, message = FALSE}
+mammals_sp2 <- mammals_short_list %>%
+  gather(key="sp",value="count", Akodon_cursor:Wilfredomys_oenax) %>% distinct(sp, .keep_all = TRUE)
+
+short_mammals_traits <- semi_join(mammals_short_traits, mammals_list,by="sp") %>% distinct(sp, .keep_all = TRUE)
+
+###
+#Ordem alfabética lista
+mammals_short_list <- mammals_short_list[ , order(names(mammals_short_list))]
+
+#Ordem alfabética traits
+short_mammals_traits <- short_mammals_traits[order(short_mammals_traits$sp),]
+###
+
+nrow(short_mammals_traits) #194
+ncol(mammals_short_list) #194
+#OK!
+```
+
+In mammals, the tree proposed by Upham needs some nomenclature adjustments to proceed with the analysis.
+
+```{r, message = FALSE}
+#Arrumando nomenclatura 
+mammals.upham.drop <- drop.tip(mammals_full_phy, "_Anolis_carolinensis") #remove Anolis
+sp_names_full <- mammals.upham.drop$tip.label
+split_names <- sapply(strsplit(sp_names_full, split='_'), function(x) (c(x[1], x[2])))
+split_names_t <- data.frame(t(split_names))
+new_names <- paste(split_names_t$X1, split_names_t$X2, sep="_")
+
+# check if it is correct
+data.frame(original=mammals.upham.drop$tip.label[-1][1:10], fixed=new_names[1:10])
+mammals.upham.drop$tip.label <- new_names
+mammals.upham.drop #4175 tips
+```
+
+Then we can make prune.sample with our species composition matrix
+
+```{r, message = FALSE}
+mammals_phy <- prune.sample(mammals_short_list, mammals.upham.drop) #167 tips
+```
+
+Finally, we remove species from the composition and traits that do not have a phylogenetic position.
+
+```{r, message = FALSE}
+# Tirando da lista
+rem.col.phy <- c("Cabassous_tatouay","Callicebus_barbarabrownae","Callicebus_melanochir", "Callithrix_flaviceps", "Dasyprocta_iacki" ,"Dasyprocta_prymnolopha","Dasypus_hybridus", "Dasypus_septemcinctus", "Hylaeamys_oniscus","Leontopithecus_caissara" ,"Leontopithecus_chrysopygus","Leopardus_geoffroyi","Leopardus_guttulus", "Marmosa_paraguayana","Marmosops_bishopi","Monodelphis_unistriata","Nectomys_rattus","Oxymycterus_angularis","Oxymycterus_hispidus","Oxymycterus_roberti","Phaenomys_ferrugineus","Phyllomys_kerri","Phyllomys_medius","Phyllomys_thomasi","Phyllomys_unicolor","Reithrodon_typicus","Sapajus_cay","Tolypeutes_tricinctus","Wilfredomys_oenax")
+
+#Removendo da composição (alteração do nome de . para _)
+mammals_phy_list <- mammals_short_list[,!(names(mammals_short_list)%in% rem.col.phy)] #166 spp
+
+#Removendo espécies dos traits
+mammals_phy_traits <- short_mammals_traits[!short_mammals_traits$sp %in% rem.col.phy,] #166 spp
+```
+
+```{r}
+# Non harmonized dataset
+full_mammals_phy <- prune.sample(mammals_full_list, mammals.upham.drop)
+ncol(mammals_full_list) # 236 spp.
+
+# exclude spp. on traits list without in composition list
+mammals.short.traits <- mammals.short.traits %>% distinct(sp, .keep_all = TRUE)
+exclude_traits <- anti_join(mammals.short.traits,mammals_list, by ="sp")
+
+# Retirando por condição dos vetores
+mammals_traits_na <- mammals.short.traits[!(mammals.short.traits$sp %in% exclude_traits$sp), ]
+nrow(mammals_traits_na) #232 spp
+```
+
+##### 1.2. Extract abiotic data for grids
+
+###### 1.2.1 Climate
+
+```{r}
+#Extraindo dados climáticos
+data_extract1 <- raster::extract(Bio01,             
+                                 grid_center,   
+                                 fun=mean,     
+                                 df=TRUE) 
+
+data_extract2 <- raster::extract(Bio02,             
+                                 grid_center,   
+                                 fun=mean,     
+                                 df=TRUE) 
+
+data_extract3 <- raster::extract(Bio03,             
+                                 grid_center,    
+                                 fun=mean,     
+                                 df=TRUE)
+data_extract4 <- raster::extract(Bio04,             
+                                 grid_center,    
+                                 fun=mean,     
+                                 df=TRUE)
+
+data_extract7 <- raster::extract(Bio07,             
+                                 grid_center,    
+                                  fun=mean,     
+                                  df=TRUE)
+
+data_extract11 <- raster::extract(Bio11,             
+                                  grid_center,     
+                                 fun=mean,     
+                                 df=TRUE)
+
+data_extract12 <- raster::extract(Bio12,             
+                                  grid_center,     
+                                 fun=mean,     
+                                 df=TRUE)
+
+data_extract15 <- raster::extract(Bio15,             
+                                  grid_center,     
+                                  fun=mean,     
+                                  df=TRUE) 
+
+data_extract17 <- raster::extract(Bio17,             
+                                  grid_center,     
+                                  fun=mean,     
+                                  df=TRUE)
+
+#Unindo variáveis climáticas em um data.frame
+clima <- data.frame(id=grid_ma$id,
+                    BIO01=data_extract1$CHELSA_bio1_1981.2010_V.2.1,
+                    BIO02=data_extract2$CHELSA_bio2_1981.2010_V.2.1,
+                    BIO03=data_extract3$CHELSA_bio3_1981.2010_V.2.1, 
+                    BIO04=data_extract4$CHELSA_bio4_1981.2010_V.2.1, 
+                    BIO07=data_extract7$CHELSA_bio7_1981.2010_V.2.1, 
+                    BIO11=data_extract11$CHELSA_bio11_1981.2010_V.2.1,
+                    BIO12=data_extract12$CHELSA_bio12_1981.2010_V.2.1,
+                    BIO15=data_extract15$CHELSA_bio15_1981.2010_V.2.1,
+                    BIO17=data_extract17$CHELSA_bio17_1981.2010_V.2.1)
+clima
+```
+
+###### 1.2.2 Productivity
+
+```{r}
+# npp 
+data_prod <- raster::extract(prod,             
+                            grid_center,   
+                            fun=mean,     
+                            df=TRUE)
+
+data_abiotic <- cbind(clima , data_prod)
+data_abiotic <- data_abiotic[,-11]
+```
+
+###### 1.2.3 Topography
+
+```{r}
+data_topography <- raster::extract(topography,             
+                                   grid_center,   
+                                 fun=mean,     
+                                 df=TRUE)
+
+# join with others abiotic data
+data_abiotic_all <- cbind(data_abiotic, data_topography)
+data_abiotic_all <- data_abiotic_all[,-12]
+```
+
+##### 1.3. Save datasets
+
+```{r}
+# saving abiotic dataset
+data_abiotic_all <- rename(data_abiotic_all, Elevation = elevation_1KMmd_GMTEDmd, Productivity = CHELSA_npp_1981.2010_V.2.1)
+write.table(data_abiotic_all, "abiotic_data/abiotic_data.txt") # save dataset
+#read.table("abiotic_data/abiotic_data.txt") # confering
+
+###
+# Fazer uma correlação com esses dados, e depois uma correlação espacial
+# Isso seria a análise de sensibilidade - se o conjunto faz diferença (árvore), e se isso é diferente no espaço
+
+# DR - 1 dataset sem excluir as espécies que saíram traits ~ 1 dataset com a árvore com as espécies excluímos traits
+# AG - Assemblage age foi calculado com a árvore completa ~ 1 sem considerar as espécies excluidas traits?
+# Richness - dataset com riqueza completa ~ 1 sem considerar a árvore e os traits? 
+
+#---------------------
+# Harmonized dataset
+# amphibia
+setwd("E:/repos/biogeo_vertebrates-main")
+write.tree(amphibia_phy, "02_metrics/harmonized_data/amphibia.tre") #421 tips
+write.table(list.amphibia.phy, "02_metrics/harmonized_data/list_amphibia.txt") #421 spp
+write.table(traits.amphibia.phy, "02_metrics/harmonized_data/trait_amphibia.txt")
+
+# squamata
+write.tree(squamata_phy, "02_metrics/harmonized_data/squamata.tre") # 262 spp
+write.table(short_squamata_list, "02_metrics/harmonized_data/list_squamata.txt") #262 spp - +id
+write.table(short_squamata_traits, "02_metrics/harmonized_data/trait_squamata.txt")#262spp
+
+# birds
+write.tree(birds_phy_list, "02_metrics/harmonized_data/birds.tre") # 638 spp
+write.table(short.birds.list, "02_metrics/harmonized_data/list_squamata.txt") #638 spp - +id
+write.table(short.birds.traits, "02_metrics/harmonized_data/trait_squamata.txt")# 638
+
+# mammals
+write.tree(mammals_phy, "02_metrics/harmonized_data/mammals.tre") # 166 spp
+write.table(mammals_phy_list, "02_metrics/harmonized_data/list_mammals.txt") #166 spp - +id
+write.table(mammals_phy_traits, "02_metrics/harmonized_data/trait_mammals.txt")# 166 spp
+
+#---------------------
+# non harmonized dataset
+
+# amphibia
+write.tree(phy_amphibia_all, "02_metrics/nonharmonized_data/amphibia.tre") # 487 spp
+write.table(amphibia_list, "02_metrics/nonharmonized_data/list_amphibia.txt") #519 spp - +id
+write.table(amphibia_traits_na, "02_metrics/nonharmonized_data/trait_amphibia.txt")# 506 spp
+
+# squamata
+write.tree(full_squamata_phy, "02_metrics/nonharmonized_data/squamata.tre") # 382 spp
+write.table(squamata_full_list, "02_metrics/nonharmonized_data/list_squamata.txt") #403 spp - +id
+write.table(squamata_traits_na, "02_metrics/nonharmonized_data/trait_squamata.txt")# 380 spp
+
+# birds
+write.tree(full_birds_phy, "02_metrics/nonharmonized_data/birds.tre") # 695 spp
+write.table(birds_full_list, "02_metrics/nonharmonized_data/list_birds.txt") #815 spp - +id
+write.table(birds_traits_na, "02_metrics/nonharmonized_data/trait_birds.txt")# 777 spp
+
+# mammals
+write.tree(full_mammals_phy, "02_metrics/nonharmonized_data/mammals.tre") # 196 spp
+write.table(mammals_full_list, "02_metrics/nonharmonized_data/list_mammals.txt") #236 spp - +id
+write.table(mammals_traits_na, "02_metrics/nonharmonized_data/trait_mammals.txt") # 232 spp
+#---------------------
+```

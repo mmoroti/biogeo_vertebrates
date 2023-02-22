@@ -18,10 +18,11 @@ map_limits <- list(
 )
 
 # load data
-mammals_full_list <- read.table('list_of_species/composition_mammals.txt', header=T)
-mammals_full_phy <- read.nexus("https://raw.githubusercontent.com/n8upham/MamPhy_v1/master/_DATA/MamPhy_fullPosterior_BDvr_DNAonly_4098sp_topoFree_FBDasZhouEtAl_MCC_v2_target.tre") 
 coords_id <- read.table("Shapefiles/id_coordinates.txt")
 nrow(coords_id) # 432 sites
+mammals_full_list <- read.table('02_metrics/harmonized_data/list_mammals.txt', header=T)
+mammals_full_phy <- read.tree("02_metrics/harmonized_data/mammals.tre")
+
 
 # adjustments in mammals phy
 mammals.upham.drop <- drop.tip(mammals_full_phy, "_Anolis_carolinensis") #remove Anolis
@@ -63,6 +64,9 @@ rem.col.phy <- c("Abrawayaomys_chebezi","Abrawayaomys_ruschii","Akodon_sanctipau
 mammals_list_phy <- mammals_list[,!(names(mammals_list)%in% rem.col.phy)]
 ncol(mammals_list_phy) #196
 mammals_phy # 196 spp.
+
+mammals_list_phy <- mammals_full_list
+mammals_phy <- mammals_full_phy
 
 # squamata richness
 richness_mammals <- rowSums(mammals_list_phy)
@@ -126,9 +130,7 @@ col_five_hues <- c(
            "#3d291a",
            "#a9344f",
            "#578a5b",
-           "#83a6c4",
-           "#f56cd9",
-           "#FFD17A")
+           "#83a6c4")
            
 map_evoregion_mammals <- 
   evoregion_mammals %>% 
@@ -136,7 +138,7 @@ map_evoregion_mammals <-
   ggplot2::geom_raster(ggplot2::aes(x = V1, y = V2, fill = site_region_mammals)) + 
   ggplot2::scale_fill_manual(
     name = "", 
-    labels = LETTERS[1:6],
+    labels = LETTERS[1:4],
     values = rev(col_five_hues)
   ) +
   ggplot2::geom_sf(data = coastline) +
@@ -205,13 +207,13 @@ map_joint_evoregion_mammals
 
 # temos que definir a ocorrência de cada espécie nas evoregiões. Para fazer isso, podemos usar a função get_region_occe obter um quadro de dados de espécies nas linhas e evoregiões nas colunas.
 mammals_region <- get_region_occ_v2(comm = mammals_list_phy, site.region = site_region_mammals)
-nrow(mammals_region) # 160
-ncol(mammals_list_phy) # 196 - 36 spp a mais 
+nrow(mammals_region) # 166
+ncol(mammals_list_phy) # 166 - 36 spp a mais 
 
 # O objeto criado na última etapa pode ser usado em uma função auxiliar no Herodotools para produzir facilmente o arquivo Phyllip necessário para executar a análise da reconstrução da área ancestral usando o BioGeoBEARS.
 # save phyllip file
 getwd()
-Herodotools::get_tipranges_to_BioGeoBEARS(mammals_region,filename = "assemblage_age/geo_area_mammals.data",areanames = NULL) 
+Herodotools::get_tipranges_to_BioGeoBEARS(mammals_region,filename = "assemblage_age/geo_area_mammals_harm.data",areanames = NULL) 
 
 ###------------------------------------------------------------------------
 # depois da reconstrução de range ancestral 
@@ -223,17 +225,17 @@ mammals_phy_bio <- ape::multi2di(mammals_phy_bio)
 remove <- c("Akodon_montensis", "Bibimys_labiosus", "Callithrix_penicillata", "Cavia_aperea", "Cerdocyon_thous", "Chrysocyon_brachyurus", "Coendou_prehensilis", "Coendou_spinosus", "Cuniculus_paca", "Dasypus_novemcinctus", "Didelphis_albiventris", "Euphractus_sexcinctus", "Euryzygomatomys_spinosus", "Galictis_cuja", "Herpailurus_yagouaroundi", "Hydrochoerus_hydrochaeris", "Kannabateomys_amblyonyx", "Lontra_longicaudis", "Mazama_gouazoubira", "Monodelphis_dimidiata", "Monodelphis_domestica", "Myrmecophaga_tridactyla", "Nasua_nasua", "Necromys_lasiurus", "Nectomys_squamipes","Oligoryzomys_eliurus", "Oligoryzomys_nigripes", "Pecari_tajacu", "Procyon_cancrivorus", "Puma_concolor", "Sapajus_nigritus", "Sciurus_aestuans", "Speothos_venaticus", "Tamandua_tetradactyla", "Tapirus_terrestris", "Tayassu_pecari")
 
 mammals_phy_bio <- drop.tip(mammals_phy_bio, remove)
-ape::write.tree(mammals_phy_bio , 'assemblage_age/mammals_biogeo.new')
+ape::write.tree(mammals_phy_bio , 'assemblage_age/mammals_biogeo_harm.new')
 
 # idade da comunidade
 # converting numbers to character
-biogeo_area <- data.frame(biogeo = chartr("123456", "ABCDEF", evoregion_mammals$site_region_mammals)) 
+biogeo_area <- data.frame(biogeo = chartr("1234", "ABCD", evoregion_mammals$site_region_mammals)) 
 
 # getting the ancestral range area for each node 
 node_area <- 
   Herodotools::get_node_range_BioGeoBEARS(
     resDECj,
-    phyllip.file = "assemblage_age/geo_area_mammals.data",
+    phyllip.file = "assemblage_age/geo_area_mammals_harm.data",
     mammals_phy_bio,
     max.range.size = 3 
   )
@@ -244,24 +246,22 @@ mammals_list_biogeo <- mammals_list_phy[,!(names(mammals_list_phy)%in% remove)]
 ncol(mammals_list_biogeo) #692 spp
 
 # calculating age arrival 
-age_comm <- Herodotools::calc_age_arrival(W = mammals_list_biogeo, 
+age_comm <- Herodotools::calc_age_arrival(W = mammals_list_phy, 
                                           tree = mammals_phy_bio, 
                                           ancestral.area = node_area, 
                                           biogeo = biogeo_area) 
-log10(age_comm$mean_age_per_assemblage)
 
 sites <- dplyr::bind_cols(coords, site_region =  evoregion_mammals$site_region_mammals, age = age_comm$mean_age_per_assemblage)
 
-map_age <- 
-  sites %>% 
+sites %>% 
   ggplot() + 
   ggplot2::geom_raster(ggplot2::aes(x = V1, y = V2, fill = mean_age_arrival)) + 
   rcartocolor::scale_fill_carto_c(type = "quantitative", 
                                   palette = "SunsetDark",
                                   direction = 1, 
-                                  limits = c(0, 3.5),  ## max percent overall
-                                  breaks = seq(0, 3.5, by = .5),
-                                  labels = glue::glue("{seq(0, 3.5, by = 0.5)}")) +
+                                  limits = c(0, 100),  ## max percent overall
+                                  breaks = seq(0, 100, by = 25),
+                                  labels = glue::glue("{seq(0, 100, by = 25)}")) +
   ggplot2::geom_sf(data = coastline, size = 0.4) +
   ggplot2::coord_sf(xlim = map_limits$x, ylim = map_limits$y) +
   ggplot2::ggtitle("") + 
@@ -280,9 +280,8 @@ map_age <-
     axis.text = element_text(size = 5),
     plot.subtitle = element_text(hjust = 0.5)
   )
-map_age
 
 # Save dataset
 age_mammals <- cbind(coords_id,sites[,3:4])
-write.table(age_mammals,"assemblage_age/age_mammals.txt")
-read.table('assemblage_age/age_mammals.txt')
+write.table(age_mammals,"assemblage_age/age_mammals_harm.txt")
+read.table('assemblage_age/age_mammals_harm.txt')

@@ -19,7 +19,9 @@ map_limits <- list(
 
 # load data
 birds_full_list <- read.table('list_of_species/composition_birds.txt', header=T)
-tree_birds <- read.tree("phylogeny/phy_birds.tre")
+
+# tree data
+tree_birds <- read.nexus("phylogeny/consensus_mcct.tre")
 coords_id <- read.table("Shapefiles/id_coordinates.txt")
 nrow(coords_id) # 432 sites
 
@@ -31,11 +33,11 @@ names(birds_list) <- gsub(".", "_", fixed=T, names(birds_list))
 
 ncol(birds_list) # 816
 tree_birds # 716 spp
-View(birds_list)
 # prune with phylogeny
-birds_phy <- prune.sample(birds_list, tree_birds) # 695 spp.
-
-match.phylo.comm(tree_birds, birds_list)
+birds_phy <- prune.sample(birds_list, mcct_birds)
+# confering nomenclature names
+names <- birds_mcct$tip.label
+View(as.data.frame(names))
 ncol(birds_list) # precisamos remover 121 espécies que estão a mais na composição
 
 rem.col.phy <- c("Agelaioides_fringillarius","Amazilia_sapphirina","Anabacerthia_lichtensteini","Anodorhynchus_glaucus","Antrostomus_rufus","Antrostomus_sericocaudatus","Anumara_forbesi","Aramides_cajaneus","Asemospiza_fuliginosa","Asthenes_moreirae","Atticora_tibialis","Automolus_lammi","Basileuterus_auricapilla","Buteogallus_coronatus","Buteogallus_lacernulatus","Calidris_subruficollis","Cantorchilus_leucotis","Cantorchilus_longirostris","Castanozoster_thoracicus","Celeus_galeatus","Celeus_ochraceus","Celeus_tinnunculus","Ceratopipra_rubrocapilla","Cercomacroides_laeta","Chlorostilbon_notatus","Chordeiles_nacunda","Ciccaba_huhula","Ciccaba_virgata","Cichlocolaptes_holti","Cichlocolaptes_mazarbarnetti","Clibanornis_rectirostris","Colaptes_campestroides","Cyanocorax_coeruleus","Cyanoloxia_brissonii","Diopsittaca_cumanensis","Elaenia_sordida","Eupsittula_aurea","Eupsittula_cactorum","Formicivora_acutirostris","Formicivora_paludicola","Geranoaetus_albicaudatus","Griseotyrannus_aurantioatrocristatus","Guyramemua_affinis","Herpsilochmus_scapularis","Hirundinea_bellicosa","Hoploxypterus_cayanus","Hydropsalis_maculicaudus","Icterus_pyrrhopterus","ID","Islerothraupis_cristata","Leistes_superciliaris","Lipaugus_ater","Lipaugus_conditus","Mareca_sibilatrix","Microspingus_cabanisi","Microspingus_cinereus","Microspingus_lateralis","Myiodynastes_solitarius","Myiothlypis_flaveola","Myiothlypis_leucoblephara","Myiothlypis_leucophrys","Myiothlypis_rivularis","Myrmoderus_loricatus","Myrmoderus_ruficauda","Myrmoderus_squamosus","Nycticryphes_semicollaris","Nyctipolus_hirundinaceus","Ortalis_araucuan","Ortalis_squamata","Orthopsittaca_manilatus","Parabuteo_leucorrhous","Paraclaravis_geoffroyi","Phalcoboenus_chimango","Pheugopedius_genibarbis","Philohydor_lictor","Pionus_reichenowi","Pipraeidea_bonariensis","Pogonotriccus_eximius","Porphyriops_melanops","Pseudastur_polionotus","Pseudopipra_pipra","Psittacara_acuticaudatus","Psittacara_leucophthalmus","Pygochelidon_melanoleuca","Ramphastos_ariel","Ramphastos_culminatus","Rhopias_gularis","Rufirallus_viridis","Rupornis_magnirostris","Sarkidiornis_sylvicola", "Sclerurus_cearensis","Scytalopus_gonzagai","Scytalopus_petrophilus","Serpophaga_griseicapilla","Setopagis_parvula","Spatula_platalea","Spatula_versicolor","Spinus_magellanicus","Spinus_yarrellii","Sporophila_angolensis","Sporophila_beltoni","Sporophila_maximiliani","Sporophila_pileata","Stephanoxis_loddigesii","Sternula_superciliaris","Stigmatura_bahiae","Synallaxis_cinerea","Synallaxis_hellmayri","Systellura_longirostris","Tangara_brasiliensis","Tangara_cyanomelas","Tangara_flava","Tangara_ornata","Tangara_palmarum","Tangara_sayaca","Thlypopsis_pyrrhocoma","Tityra_braziliensis","Trogon_aurantius","Vireo_chivi","Xenops_rutilus","Xiphorhynchus_atlanticus") 
@@ -44,6 +46,8 @@ rem.col.phy <- c("Agelaioides_fringillarius","Amazilia_sapphirina","Anabacerthia
 birds_list_phy <- birds_list[,!(names(birds_list)%in% rem.col.phy)]
 ncol(birds_list_phy ) #695
 birds_phy # 695 spp.
+
+View(birds_phy$edge.lengt == 0)
 
 # squamata richness
 richness_birds <- rowSums(birds_list_phy)
@@ -185,9 +189,9 @@ map_joint_evoregion_birds
 
 # temos que definir a ocorrência de cada espécie nas evoregiões. Para fazer isso, podemos usar a função get_region_occe obter um quadro de dados de espécies nas linhas e evoregiões nas colunas.
 birds_region <- get_region_occ_v2(comm = birds_list_phy, site.region = site_region_birds)
-nrow(birds_region) # 692
+nrow(birds_region) # 695
 ncol(birds_list_phy) #695
-
+?get_region_occ
 # O objeto criado na última etapa pode ser usado em uma função auxiliar no Herodotools para produzir facilmente o arquivo Phyllip necessário para executar a análise da reconstrução da área ancestral usando o BioGeoBEARS.
 # save phyllip file
 getwd()
@@ -200,8 +204,8 @@ Herodotools::get_tipranges_to_BioGeoBEARS(birds_region,filename = "assemblage_ag
 birds_phy_bio <- force.ultrametric(birds_phy)
 birds_phy_bio <- ape::multi2di(birds_phy_bio)
 
-remove <- c("Crotophaga_major", "Crypturellus_parvirostris", "Turdus_leucomelas")
-birds_phy_bio <- drop.tip(birds_phy_bio, remove)
+#remove <- c("Crotophaga_major", "Crypturellus_parvirostris", "Turdus_leucomelas")
+#birds_phy_bio <- drop.tip(birds_phy_bio, remove)
 ape::write.tree(birds_phy_bio , 'assemblage_age/birds_biogeo.new')
 
 # idade da comunidade
@@ -219,29 +223,27 @@ node_area <-
 
 # remove species in list of species
 ncol(birds_list_phy) #695 spp
-birds_list_biogeo <- birds_list_phy[,!(names(birds_list_phy)%in% remove)]
-ncol(birds_list_biogeo) #692 spp
+ncol(birds_list_phy) #695 spp
 
 # calculating age arrival 
-age_comm <- Herodotools::calc_age_arrival(W = birds_list_biogeo, 
+age_comm <- Herodotools::calc_age_arrival(W = birds_list_phy, 
                                           tree = birds_phy_bio, 
                                           ancestral.area = node_area, 
                                           biogeo = biogeo_area) 
-log10(age_comm$mean_age_per_assemblage)
+min(age_comm$mean_age_per_assemblage)
 
+sites <- dplyr::bind_cols(coords, site_region =  evoregion_birds$site_region_birds, age =age_comm$mean_age_per_assemblage)
 
-sites <- dplyr::bind_cols(coords, site_region =  evoregion_birds$site_region_birds, age = age_comm$mean_age_per_assemblage)
-
-map_age <- 
-  sites %>% 
+#map_age <- 
+map_age_birds <-  sites %>% 
   ggplot() + 
-  ggplot2::geom_raster(ggplot2::aes(x = V1, y = V2, fill = log10(mean_age_arrival))) + 
+  ggplot2::geom_raster(ggplot2::aes(x = V1, y = V2, fill = mean_age_arrival)) + 
   rcartocolor::scale_fill_carto_c(type = "quantitative", 
                                   palette = "SunsetDark",
                                   direction = 1, 
-                                  limits = c(0, 3.5),  ## max percent overall
-                                  breaks = seq(0, 3.5, by = .5),
-                                  labels = glue::glue("{seq(0, 3.5, by = 0.5)}")) +
+                                  limits = c(0.0, 25),  ## max percent overall
+                                  breaks = seq(0.0, 25, by = 10),
+                                  labels = glue::glue("{seq(0.0, 25, by = 10)}")) +
   ggplot2::geom_sf(data = coastline, size = 0.4) +
   ggplot2::coord_sf(xlim = map_limits$x, ylim = map_limits$y) +
   ggplot2::ggtitle("") + 
@@ -260,7 +262,7 @@ map_age <-
     axis.text = element_text(size = 5),
     plot.subtitle = element_text(hjust = 0.5)
   )
-map_age
+
 
 # Save dataset
 age_birds <- cbind(coords_id,sites[,3:4])

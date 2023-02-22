@@ -71,6 +71,7 @@ mammals_full_traits <- read.csv2("traits_mammals.csv", sep=";")
 
 View(mammals_full_traits)
 ```
+
 ### Loading phylogeny
 ```{r loading phylogeny data, message = FALSE}
 amphibia_full_phy <- read.tree("phy_amphibia.tre") 
@@ -180,9 +181,7 @@ names(data_abiotic)
 
 
 
-
 ## Data handling 
-
 ### Anura
 Adjusting species composition names according to phylogeny. 
 ```{r, message = FALSE}
@@ -596,6 +595,11 @@ mammals_phy_list <- mammals_short_list[,!(names(mammals_short_list)%in% rem.col.
 #Removendo espécies dos traits
 mammals_phy_traits <- short_mammals_traits[!short_mammals_traits$sp %in% rem.col.phy,] #167
 ```
+
+
+
+
+
 
 
 
@@ -1146,6 +1150,11 @@ full_data <- full_join(full_biotic, data_abiotic, by="id")
 full_data <- full_join(full_data, full, by="id")
 full_data <- remove_missing(full_data) #424 comunidades - 8 comunidades retiradas pois estavam sem dados climáticos
 ```
+
+
+
+
+
 
 
 

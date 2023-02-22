@@ -1,0 +1,663 @@
+---
+title: "02_metrics"
+author: "MatheusMoroti"
+format: html
+editor: visual
+---
+
+#### Data metrics
+
+In this script we calculate the metrics that will be used to answer our questions. Here we will calculate the equal split **diversification rate**, **species richness** and import the calculated **assemblage age** into another script using BioGeoBEARS e Herodotools packages. In this script we also run a **sensitivity analysis** to see if the metrics differ between the harmonized datasets and the dataset using all available species in phylogeny and composition matrix. Finally, we construct the **climate composite variable** that will be used in SEM.
+
+##### 0.0. Load libraries
+
+```{r, message=F}
+library(tidyverse) # data science tools
+library(visdat) # missing data
+library(phytools) #phylogenetic data
+library(here) # set directory 
+library(picante) # diversification rate
+library(FD) # fdis
+library(conflicted) # resolve conflit in function 'select'
+conflict_prefer("select", "dplyr")
+```
+
+##### 0.1. Loading files
+
+```{r}
+# set directory
+```
+
+```{r, composition}
+# Composition matrix
+# full list
+full_list_amphibia <- read.table("full_data/list_amphibia.txt", h=T) # 519 
+full_list_amphibia <- full_list_amphibia[,-210]
+full_list_squamata <- read.table("full_data/list_squamata.txt", h=T)
+full_list_squamata <- full_list_squamata[,-1] # 402
+full_list_birds <- read.table("full_data/list_birds.txt", h=T) # 815
+full_list_mammals <- read.table("full_data/list_mammals.txt", h=T) # 236
+full_list_mammals <- full_list_mammals[,-109] # 235 -col 'ID'
+
+# harmonized data
+harm_list_amphibia <- read.table("harmonized_data/list_amphibia.txt", h=T) # 421
+harm_list_squamata <- read.table("harmonized_data/list_squamata.txt", h=T) # 263
+harm_list_squamata <- harm_list_squamata[,-138] # remove column 'ID' # 262
+harm_list_birds <- read.table("harmonized_data/list_birds.txt", h=T) # 638
+harm_list_mammals <- read.table("harmonized_data/list_mammals.txt", h=T) # 166
+```
+
+```{r, traits}
+# traits
+# full list
+full_traits_amphibia <- read.csv2("full_data/trait_amphibia.txt", sep=" ") 
+full_traits_squamata <- read.csv2("full_data/trait_squamata.txt", sep=" ")
+full_traits_birds <- read.csv2("full_data/trait_birds.txt", sep=" ")
+full_traits_mammals <- read.csv2("full_data/trait_mammals.txt", sep=" ")
+
+# harmonized data
+harm_traits_amphibia <- read.csv2("harmonized_data/trait_amphibia.txt", sep=" ") 
+harm_traits_squamata <- read.csv2("harmonized_data/trait_squamata.txt", sep= " ")
+
+harm_traits_birds <- read.csv2("harmonized_data/trait_birds.txt", sep=" ")
+harm_traits_mammals <- read.csv2("harmonized_data/trait_mammals.txt", sep=" ")
+```
+
+```{r, phylogeny}
+# phylogeny
+# full list
+full_phy_amphibia <- read.tree("full_data/amphibia.tre") #487
+full_phy_squamata <- read.tree("full_data/squamata.tre") #382
+full_phy_birds <- read.tree("full_data/birds.tre") #695
+full_phy_mammals <- read.tree("full_data/mammals.tre") #196
+
+# harmonized data
+harm_phy_amphibia <- read.tree("harmonized_data/amphibia.tre") # 421
+harm_phy_squamata <- read.tree("harmonized_data/squamata.tre") # 262
+harm_phy_birds <- read.tree("harmonized_data/birds.tre") # 638
+harm_phy_mammals <- read.tree("harmonized_data/mammals.tre") # 166
+```
+
+```{r, assemblage age}
+# Assemblage age
+# full list
+full_aa_amphibia <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_amphibia.txt')#487
+full_aa_squamata <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_squamata.txt')#382
+full_aa_birds <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_birds.txt')#695
+full_aa_mammals <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_mammals.txt')#196
+
+# harmonized data
+harm_aa_amphibia <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_amphibia_harm.txt')#421
+harm_aa_squamata <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_squamata_harm.txt')#262
+harm_aa_birds <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_birds_harm.txt') #638
+harm_aa_mammals <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_mammals_harm.txt') #166
+```
+
+```{r, abiotic data}
+# climate data
+abiotic_data <- read.table("abiotic_data.txt")
+```
+
+##### 1.0. Calculing metrics
+##### 1.1. Richness
+We calculated the richness using the complete species composition dataset and the one with harmonized data, i.e. the same number of species in the phylogeny and in the trait list.
+
+###### 1.1.1. Amphibia
+
+```{r}
+# full
+full_rich_amphibia <- full_list_amphibia %>%
+  mutate_at(c(names(full_list_amphibia)), as.numeric) %>%
+  mutate(richness = rowSums(full_list_amphibia))
+
+# harmonized
+harm_rich_amphibia <- harm_list_amphibia %>%
+  mutate_at(c(names(harm_list_amphibia)), as.numeric) %>%
+  mutate(richness = rowSums(harm_list_amphibia))
+```
+
+###### 1.1.2. Squamata
+
+```{r}
+# full
+full_rich_squamata <- full_list_squamata %>%
+  mutate_at(c(names(full_list_squamata)), as.numeric) %>%
+  mutate(richness = rowSums(full_list_squamata))
+
+# harmonized
+harm_rich_squamata <- harm_list_squamata %>%
+  mutate_at(c(names(harm_list_squamata)), as.numeric) %>%
+  mutate(richness = rowSums(harm_list_squamata))
+```
+
+###### 1.1.3. Birds
+
+```{r}
+# full
+full_rich_birds <- full_list_birds %>%
+  mutate_at(c(names(full_list_birds)), as.numeric) %>%
+  mutate(richness = rowSums(full_list_birds))
+
+# harmonized
+harm_rich_birds <- harm_list_birds %>%
+  mutate_at(c(names(harm_list_birds)), as.numeric) %>%
+  mutate(richness = rowSums(harm_list_birds))
+```
+
+###### 1.1.4. Mammals
+
+```{r}
+# full
+full_rich_mammals <- full_list_mammals %>%
+  mutate_at(c(names(full_list_mammals)), as.numeric) %>%
+  mutate(richness = rowSums(full_list_mammals))
+
+# harmonized
+harm_rich_mammals <- harm_list_mammals %>%
+  mutate_at(c(names(harm_list_mammals)), as.numeric) %>%
+  mutate(richness = rowSums(harm_list_mammals))
+```
+
+
+##### 1.2. Diversification rate
+To calculate the rate of diversification per community, we need the full list dataset to have the same number of species as the tree.
+
+###### 1.2.1. Amphibia
+
+```{r, adjustments}
+# adjustments
+names(full_list_amphibia) <- gsub("Scinax_v.signatus", "Scinax_v-signatus", fixed=T, names(full_list_amphibia))
+names(full_list_amphibia) <- gsub("Scinax_x.signatus", "Scinax_x-signatus", fixed=T, names(full_list_amphibia))
+#match.phylo.comm(full_phy_amphibia,full_list_amphibia)
+
+remove.col.amp <- c("Bokermannohyla_izecksohni","Brachycephalus_sulfuratus","Chiasmocleis_cordeiroi","Chiasmocleis_crucis","Crossodactylus_bokermanni","Crossodactylus_fransciscanus","Crossodactylus_timbuhy","Dendropsophus_baileyi","Dendropsophus_bromeliaceus","Eleutherodactylus_bilineatus","Holoaden_pholeter","Melanophryniscus_milanoi","Melanophryniscus_xanthostomus","Scinax_strigilatus","Phyllodytes_megatympanum","Proceratophrys_fryi","Proceratophrys_mantiqueira","Proceratophrys_moratoi","Proceratophrys_phyllostoma","Proceratophrys_pombali","Pseudopaludicola_atragula","Pseudopaludicola_pocoto","Scinax_caissara","Scinax_canastrensis","Scinax_centralis","Scinax_kautskyi","Scinax_melanodactylus","Scinax_rossaferesae","Scinax_skuki","Trachycephalus_typhonius","Vitreorana_baliomma")
+list_amphibia_dr <- full_list_amphibia[,!(names(full_list_amphibia)%in% remove.col.amp)]
+```
+```{r, diversification rate}
+# full tree
+# 487 spp
+full_dr_amphibia <- evol.distinct(full_phy_amphibia, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+full_dr_amphibia$w <- 1/full_dr_amphibia$w #equal split inverse
+
+#Selencionando DR amphibia
+full_dr <- full_dr_amphibia %>% select(w)
+full_dr <- full_dr %>% as.matrix(full_dr)
+
+#Transformando amphibia_list em matrix
+amphibia_full_matrix <- as.matrix(list_amphibia_dr)
+dim(amphibia_full_matrix)
+
+# Multiplicando matrizes para obter a média DR para cada célula do grid
+full_amphibia_dr <- amphibia_full_matrix%*% full_dr
+
+# Plotando DR
+#amp.dr <- cbind(mean_DR_amphi,grid_ma$id)
+#amp.dr <- as.data.frame(amp.dr)
+
+# Agrupando identificação da célula e o valor DR
+#dr_amphibia <- data.frame(id=grid_ma$id, DR=amp.dr$w)
+#dr_amphibia
+#hist(dr_amphibia$DR,col = "gray50",border = "gray",main = "Anura",xlab = "Diversification rate",ylab = "Frequency",br = 50)
+
+###---
+# harmonized tree
+# 421 spp
+harm_dr_amphibia <- evol.distinct(harm_phy_amphibia, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+harm_dr_amphibia$w <- 1/harm_dr_amphibia$w #equal split inverse
+
+#Selencionando DR amphibia
+harm_dr <- harm_dr_amphibia %>% select(w)
+harm_dr <- harm_dr %>% as.matrix(harm_dr)
+
+#Transformando amphibia_list em matrix
+amphibia_harm_matrix <- as.matrix(harm_list_amphibia)
+dim(amphibia_harm_matrix)
+
+# Multiplicando matrizes para obter a média DR para cada célula do grid
+harm_amphibia_dr <- amphibia_harm_matrix%*% harm_dr
+```
+
+###### 1.2.2. Squamata
+
+```{r, adjustments}
+# adjustments
+names(full_list_squamata) <- gsub(".", "_", fixed=T, names(full_list_squamata))
+#match.phylo.comm(full_phy_squamata,full_list_squamata)
+
+remove.col.squa <- c("Acanthochelys_radiolata","Acanthochelys_spixii","Caiman_crocodilus","Caiman_latirostris","Caiman_yacare","Chelonoidis_carbonaria","Chelonoidis_denticulata","Hydromedusa_maximiliani","Hydromedusa_tectifera","Kinosternon_scorpioides","Mesoclemmys_hogei","Mesoclemmys_tuberculata","Mesoclemmys_vanderhaegei","Paleosuchus_palpebrosus","Phrynops_geoffroanus","Phrynops_hilarii","Phrynops_tuberosus","Phrynops_williamsi","Trachemys_dorbigni","Tropidurus_imbituba")
+list_squamata_dr <- full_list_squamata[,!(names(full_list_squamata)%in% remove.col.squa)]
+```
+
+```{r, diversification rate}
+# full tree
+# 487 spp
+full_dr_squamata <- evol.distinct(full_phy_squamata, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+full_dr_squamata$w <- 1/full_dr_squamata$w #equal split inverse
+
+#Selencionando DR amphibia
+full_dr_squa <- full_dr_squamata %>% select(w)
+full_dr_squa <- full_dr_squa %>% as.matrix(full_dr_squa)
+
+#Transformando amphibia_list em matrix
+squamata_full_matrix <- as.matrix(list_squamata_dr)
+dim(squamata_full_matrix)
+
+# Multiplicando matrizes para obter a média DR para cada célula do grid
+full_squamata_dr <- squamata_full_matrix %*% full_dr_squa
+
+# Plotando DR
+#amp.dr <- cbind(mean_DR_amphi,grid_ma$id)
+#amp.dr <- as.data.frame(amp.dr)
+
+# Agrupando identificação da célula e o valor DR
+#dr_amphibia <- data.frame(id=grid_ma$id, DR=amp.dr$w)
+#dr_amphibia
+#hist(dr_amphibia$DR,col = "gray50",border = "gray",main = "Anura",xlab = "Diversification rate",ylab = "Frequency",br = 50)
+
+###---
+# harmonized tree
+# 421 spp
+harm_dr_squamata <- evol.distinct(harm_phy_squamata, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+harm_dr_squamata$w <- 1/harm_dr_squamata$w #equal split inverse
+
+#Selencionando DR amphibia
+harm_dr_squa <- harm_dr_squamata %>% select(w)
+harm_dr_squa <- harm_dr_squa %>% as.matrix(harm_dr_squa)
+
+#Transformando amphibia_list em matrix
+squamata_harm_matrix <- as.matrix(harm_list_squamata)
+dim(squamata_harm_matrix)
+
+# Multiplicando matrizes para obter a média DR para cada célula do grid
+harm_squamata_dr <- squamata_harm_matrix%*% harm_dr_squa
+```
+
+###### 1.2.3. Birds
+
+```{r, adjustments}
+# adjustments
+#match.phylo.comm(full_phy_birds,full_list_birds)
+
+remove.col.birds <- c("Agelaioides_fringillarius","Amazilia_sapphirina","Anabacerthia_lichtensteini" ,"Anodorhynchus_glaucus","Antrostomus_rufus","Antrostomus_sericocaudatus","Anumara_forbesi","Aramides_cajaneus","Asemospiza_fuliginosa","Asthenes_moreirae","Atticora_tibialis","Automolus_lammi","Basileuterus_auricapilla","Buteogallus_coronatus","Buteogallus_lacernulatus","Calidris_subruficollis" ,"Cantorchilus_leucotis","Cantorchilus_longirostris","Castanozoster_thoracicus","Celeus_galeatus","Celeus_ochraceus","Celeus_tinnunculus","Ceratopipra_rubrocapilla","Cercomacroides_laeta","Chlorostilbon_notatus","Chordeiles_nacunda","Ciccaba_huhula","Ciccaba_virgata","Cichlocolaptes_holti","Cichlocolaptes_mazarbarnetti","Clibanornis_rectirostris","Colaptes_campestroides","Cyanocorax_coeruleus" ,"Cyanoloxia_brissonii","Diopsittaca_cumanensis","Elaenia_sordida","Eupsittula_aurea","Eupsittula_cactorum","Formicivora_acutirostris","Formicivora_paludicola","Geranoaetus_albicaudatus","Griseotyrannus_aurantioatrocristatus","Guyramemua_affinis","Herpsilochmus_scapularis","Hirundinea_bellicosa","Hoploxypterus_cayanus","Hydropsalis_maculicaudus","Icterus_pyrrhopterus","Islerothraupis_cristata","Leistes_superciliaris","Lipaugus_ater","Lipaugus_conditus","Mareca_sibilatrix","Microspingus_cabanisi","Microspingus_cinereus","Microspingus_lateralis","Myiodynastes_solitarius","Myiothlypis_flaveola","Myiothlypis_leucoblephara","Myiothlypis_leucophrys","Myiothlypis_rivularis","Myrmoderus_loricatus","Myrmoderus_ruficauda","Myrmoderus_squamosus","Nycticryphes_semicollaris","Nyctipolus_hirundinaceus","Ortalis_araucuan","Ortalis_squamata","Orthopsittaca_manilatus","Parabuteo_leucorrhous","Paraclaravis_geoffroyi","Phalcoboenus_chimango","Pheugopedius_genibarbis","Philohydor_lictor","Pionus_reichenowi","Pipraeidea_bonariensis","Pogonotriccus_eximius","Porphyriops_melanops","Pseudastur_polionotus","Pseudopipra_pipra","Psittacara_acuticaudatus","Psittacara_leucophthalmus","Pygochelidon_melanoleuca","Ramphastos_ariel","Ramphastos_culminatus","Rhopias_gularis","Rufirallus_viridis","Rupornis_magnirostris","Sarkidiornis_sylvicola","Sclerurus_cearensis","Scytalopus_gonzagai","Scytalopus_petrophilus","Serpophaga_griseicapilla","Setopagis_parvula","Spatula_platalea","Spatula_versicolor","Spinus_magellanicus","Spinus_yarrellii","Sporophila_angolensis","Sporophila_beltoni","Sporophila_maximiliani","Sporophila_pileata","Stephanoxis_loddigesii","Sternula_superciliaris","Stigmatura_bahiae","Synallaxis_cinerea","Synallaxis_hellmayri","Systellura_longirostris","Tangara_brasiliensis","Tangara_cyanomelas","Tangara_flava","Tangara_ornata","Tangara_palmarum","Tangara_sayaca","Thlypopsis_pyrrhocoma","Tityra_braziliensis","Trogon_aurantius","Vireo_chivi","Xenops_rutilus","Xiphorhynchus_atlanticus")
+list_birds_dr <- full_list_birds[,!(names(full_list_birds)%in% remove.col.birds)]
+```
+
+```{r, diversification rate}
+# full tree
+# 487 spp
+full_dr_birds <- evol.distinct(full_phy_birds, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+full_dr_birds$w <- 1/full_dr_birds$w #equal split inverse
+
+#Selencionando DR amphibia
+full_dr_birds <- full_dr_birds %>% select(w)
+full_dr_birds <- full_dr_birds %>% as.matrix(full_dr_birds)
+
+#Transformando amphibia_list em matrix
+birds_full_matrix <- as.matrix(list_birds_dr)
+dim(birds_full_matrix)
+
+# Multiplicando matrizes para obter a média DR para cada célula do grid
+full_birds_dr <- birds_full_matrix %*% full_dr_birds
+
+# Plotando DR
+#amp.dr <- cbind(mean_DR_amphi,grid_ma$id)
+#amp.dr <- as.data.frame(amp.dr)
+
+# Agrupando identificação da célula e o valor DR
+#dr_amphibia <- data.frame(id=grid_ma$id, DR=amp.dr$w)
+#dr_amphibia
+#hist(dr_amphibia$DR,col = "gray50",border = "gray",main = "Anura",xlab = "Diversification rate",ylab = "Frequency",br = 50)
+
+###---
+# harmonized tree
+# 421 spp
+harm_dr_birds <- evol.distinct(harm_phy_birds, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+harm_dr_birds$w <- 1/harm_dr_birds$w #equal split inverse
+
+#Selencionando DR amphibia
+harm_dr_birds <- harm_dr_birds %>% select(w)
+harm_dr_birds <- harm_dr_birds %>% as.matrix(harm_dr_birds)
+
+#Transformando amphibia_list em matrix
+birds_harm_matrix <- as.matrix(harm_list_birds)
+dim(birds_harm_matrix)
+
+# Multiplicando matrizes para obter a média DR para cada célula do grid
+harm_birds_dr <- birds_harm_matrix%*% harm_dr_birds
+```
+
+###### 1.2.4. Mammals
+
+```{r, adjustments}
+# adjustments
+#match.phylo.comm(full_phy_mammals,full_list_mammals)
+
+remove.col.mammals <- c("Abrawayaomys_chebezi","Abrawayaomys_ruschii","Akodon_sanctipaulensis","Brucepattersonius_griserufescens","Brucepattersonius_guarani","Brucepattersonius_misionensis","Brucepattersonius_paradisus","Cabassous_tatouay","Callicebus_barbarabrownae","Callicebus_melanochir","Callithrix_flaviceps","Dasyprocta_iacki","Dasyprocta_prymnolopha","Dasypus_hybridus","Dasypus_septemcinctus","Graomys_chacoensis","Hylaeamys_oniscus","Leontopithecus_caissara","Leontopithecus_chrysopygus","Leopardus_geoffroyi","Leopardus_guttulus","Marmosa_paraguayana","Monodelphis_unistriata","Nectomys_rattus","Oxymycterus_angularis","Oxymycterus_caparoae","Oxymycterus_hispidus","Oxymycterus_roberti","Phaenomys_ferrugineus","Phyllomys_kerri","Phyllomys_medius","Phyllomys_thomasi","Phyllomys_unicolor","Reithrodon_typicus","Sapajus_cay","Sylvilagus_tapetillus","Tolypeutes_tricinctus","Trinomys_mirapitanga","Wilfredomys_oenax")
+list_mammals_dr <- full_list_mammals[,!(names(full_list_mammals)%in% remove.col.mammals)]
+```
+
+```{r, diversification rate}
+# full tree
+# 487 spp
+full_dr_mammals <- evol.distinct(full_phy_mammals, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+full_dr_mammals$w <- 1/full_dr_mammals$w #equal split inverse
+
+#Selencionando DR amphibia
+full_dr_mammals <- full_dr_mammals %>% select(w)
+full_dr_mammals <- full_dr_mammals %>% as.matrix(full_dr_mammals)
+
+#Transformando amphibia_list em matrix
+mammals_full_matrix <- as.matrix(list_mammals_dr)
+dim(mammals_full_matrix)
+
+# Multiplicando matrizes para obter a média DR para cada célula do grid
+full_mammals_dr <- mammals_full_matrix %*% full_dr_mammals
+
+# Plotando DR
+#amp.dr <- cbind(mean_DR_amphi,grid_ma$id)
+#amp.dr <- as.data.frame(amp.dr)
+
+# Agrupando identificação da célula e o valor DR
+#dr_amphibia <- data.frame(id=grid_ma$id, DR=amp.dr$w)
+#dr_amphibia
+#hist(dr_amphibia$DR,col = "gray50",border = "gray",main = "Anura",xlab = "Diversification rate",ylab = "Frequency",br = 50)
+
+###---
+# harmonized tree
+# 421 spp
+harm_dr_mammals <- evol.distinct(harm_phy_mammals, type = "equal.splits", scale = FALSE, use.branch.lengths = TRUE)
+harm_dr_mammals$w <- 1/harm_dr_mammals$w #equal split inverse
+
+#Selencionando DR amphibia
+harm_dr_mammals <- harm_dr_mammals %>% select(w)
+harm_dr_mammals <- harm_dr_mammals %>% as.matrix(harm_dr_mammals)
+
+#Transformando amphibia_list em matrix
+mammals_harm_matrix <- as.matrix(harm_list_mammals)
+dim(mammals_harm_matrix)
+
+# Multiplicando matrizes para obter a média DR para cada célula do grid
+harm_mammals_dr <- mammals_harm_matrix%*% harm_dr_mammals
+```
+
+
+
+
+##### 1.3. Functional dispersion (FDis)
+Now we will calculate functional dispersion (FDis) of the four groups of terrestrial vertebrates. 
+
+###### 1.3.1. Anura
+```{r, preparing traits}
+# dataframe copy and reorder, after that, reset index
+traits.amphibia.phy <- harm_traits_amphibia[order(harm_traits_amphibia$sp),]
+row.names(traits.amphibia.phy) <- NULL
+
+# check error name
+#colnames(harm_list_amphibia) == traits.amphibia.phy$sp
+names(harm_list_amphibia)[names(harm_list_amphibia) == 'Scinax_v.signatus'] <- 'Scinax_v-signatus'
+names(harm_list_amphibia)[names(harm_list_amphibia) == 'Scinax_x.signatus'] <- 'Scinax_x-signatus'
+
+atividade <- traits.amphibia.phy %>% 
+  select(sp, Diu, Crepu, Noc) %>%
+  mutate_at(vars(2:4), list(~replace(., is.na(.), 0)))
+atividade <- as.tibble(atividade)
+
+atividade <- column_to_rownames(as.data.frame(atividade),var = "sp")
+
+dist_ativ <- prep.binary(atividade, col.blocks = 3, labels = "atividade_circadiana")
+
+# Habitat
+names(traits.amphibia.phy)
+habitat <- traits.amphibia.phy %>% 
+  select(sp, Fos, Ter, Aqu, Arb) %>%
+  mutate_at(vars(2:5), list(~replace(., is.na(.), 0)))
+habitat
+
+habitat <- as.tibble(habitat)
+
+habitat <- column_to_rownames(as.data.frame(habitat), 
+                                var = "sp")
+dist_habitat <- prep.binary(habitat, col.blocks = 4, labels = "habitat")
+
+# Transformando para numeric traitss
+sum(is.na(traits.amphibia.phy$Body_size_mm)) # 0 NA's
+traits.amphibia.phy <- traits.amphibia.phy %>% 
+  mutate_at("Body_size_mm", list(as.numeric))
+class(traits.amphibia.phy$Body_size_mm)
+
+#Explorando body size
+#ggplot(traits.amphibia.phy, aes(Body_size_mm))+
+  #geom_density()
+
+bodysize <- data.frame(BodySize=log(traits.amphibia.phy$Body_size_mm))
+rownames(bodysize) <- traits.amphibia.phy$sp
+head(bodysize)
+nrow(bodysize)
+```
+```{r, fdis}
+#Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
+trait.dist <- dist.ktab(ktab.list.df(list(dist_ativ, dist_habitat, as.data.frame(bodysize))), type = c("B","B","Q"), scan=TRUE)
+#10 = S2 coefficient of GOWER & LEGENDRE for multi-choice traits
+#1 = Euclidean for quantitative traits
+
+is.euclid(trait.dist)#TRUE =D
+sum(as.matrix(is.na(trait.dist)))#no NAs :)
+
+####
+# Wed Mar 31 16:11:06 2021 ------------------------------
+# Calculating Functional Diversity metrics
+disp.func.amphibia <- fdisp(trait.dist, as.matrix(harm_list_amphibia))
+
+FDis_metric_amphibia <- data.frame(id=harm_aa_amphibia$id, FDis=disp.func.amphibia$FDis)
+```
+
+###### 1.3.2. Squamata
+```{r, preparing traits}
+# Copy dataset 
+# adjustements in number
+harm_traits_squamata[69,2] <- 69.2
+short_squamata_traits <- harm_traits_squamata
+
+# check error name
+colnames(harm_list_squamata) == short_squamata_traits$sp
+
+# circadian activity
+atividade.reptile <- short_squamata_traits %>% 
+  select(sp, diurnal, nocturnal) %>%
+  mutate_at(vars(2:3), list(~replace(., is.na(.), 0)))
+atividade.reptile <- as.tibble(atividade.reptile)
+atividade.reptile <- column_to_rownames(as.data.frame(atividade.reptile),var = "sp")
+
+dist_ativ_reptile <- prep.binary(atividade.reptile, col.blocks = 2, labels = "atividade_circadiana")
+
+# habitat
+names(short_squamata_traits)
+habitat.reptile <- short_squamata_traits %>% 
+  select(sp, Terrestre, Arboricola, Fossorial, Aquatica) %>%
+  mutate_at(vars(2:5), list(~replace(., is.na(.), 0)))
+
+habitat.reptile <- as.tibble(habitat.reptile)
+habitat.reptile <- column_to_rownames(as.data.frame(habitat.reptile), var = "sp")
+
+dist_habitat_reptile <- prep.binary(habitat.reptile, col.blocks = 4, labels = "habitat")
+
+# Thu Apr 01 17:28:40 2021 ------------------------------
+# Transformando para numeric traitss
+head(short_squamata_traits)
+sum(is.na(short_squamata_traits$svl_mm)) # 0 NA's
+
+short_squamata_traits <- short_squamata_traits %>% 
+  mutate_at("svl_mm", list(as.numeric))
+
+#Explorando body size
+#ggplot(short_squamata_traits, aes(SVL..mm.))+
+#  geom_density()
+
+bodysize.reptile <- data.frame(BodySize=log(short_squamata_traits$svl_mm))
+rownames(bodysize.reptile) <- short_squamata_traits$sp
+```
+
+```{r, fdis}
+#Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
+trait.dist.reptile <- dist.ktab(ktab.list.df(list(dist_ativ_reptile, dist_habitat_reptile, as.data.frame(bodysize.reptile))), type = c("B","B","Q"), scan=TRUE)
+#10 = S2 coefficient of GOWER & LEGENDRE for multi-choice traits
+#1 = Euclidean for quantitative traits
+is.euclid(trait.dist.reptile)#True!
+sum(as.matrix(is.na(trait.dist.reptile)))#no NAs :)
+
+#Calculando FDisp
+disp.func.reptile <- fdisp(trait.dist.reptile, as.matrix(harm_list_squamata))
+
+FDis_metric_reptiles <- data.frame(id=harm_aa_squamata$id, FDis=disp.func.reptile$FDis)
+```
+
+###### 1.3.3. Birds
+```{r, preparing traits}
+names(short.birds.traits)
+short.birds.traits <- harm_traits_birds
+
+habitat.birds <- short.birds.traits %>% 
+  select(sp, ForStrat.watbelowsurf, ForStrat.wataroundsurf, ForStrat.ground, ForStrat.understory, ForStrat.midhigh, ForStrat.canopy, ForStrat.aerial) %>%
+  mutate_at(vars(2:7), list(~replace(., is.na(.), 0)))
+habitat.birds <- as.tibble(habitat.birds) %>% distinct(sp, .keep_all = TRUE)
+
+habitat.birds <- column_to_rownames(as.data.frame(habitat.birds), var = "sp")
+
+#prep.fuzzy
+dist_habitat_birds <- prep.fuzzy(habitat.birds, col.blocks = 7, labels = "habitat")
+
+#Body mass
+body.mass.birds <- data.frame(body.mass=(as.numeric(as.character(short.birds.traits$BodyMass.Value))))
+
+#Explorando body size
+#
+rownames(body.mass.birds) <- short.birds.traits$sp
+
+bodysize.birds <- data.frame(BodySize=log(body.mass.birds$body.mass))
+
+head(bodysize.birds) #ok
+nrow(bodysize.birds) #638, ok
+
+#Explorando range extension
+sum(is.na(short.birds.traits$range_m2))#ok
+
+range.ext.birds <- data.frame(range.extension=(as.numeric(as.character(short.birds.traits$range_m2))))
+
+#Unindo traits quantitativos em um conjunto de dados
+quant.traits.birds <- cbind(bodysize.birds, range.ext.birds)
+sum(is.na(quant.traits.birds))
+
+#atividade_bird
+atividade_bird <- short.birds.traits %>% 
+  select(sp, Nocturnal, PelagicSpecialist) %>%
+  mutate_at(vars(2:3), list(~replace(., is.na(.), 0)))
+
+atividade_bird<- as.tibble(atividade_bird)
+
+atividade_bird <- column_to_rownames(as.data.frame(atividade_bird), var = "sp")
+```
+```{r, fdis}
+#Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
+trait.dist.birds <- dist.ktab(ktab.list.df(list(atividade_bird, dist_habitat_birds, as.data.frame(bodysize.birds))), type = c("D","F","Q"), scan=TRUE)
+#2 =Overlap index Manly d2 = 1-Sum(p(i)q(i))/sqrt(Sum(p(i)^2))/sqrt(Sum(q(i)^2))
+#1 = Euclidean for quantitative traits
+
+is.euclid(trait.dist.birds)#False! =(
+is.euclid(sqrt(trait.dist.birds))#True =)
+sum(as.matrix(is.na(trait.dist.birds)))#no NAs :)
+
+disp.func.birds <- fdisp(sqrt(trait.dist.birds), as.matrix(harm_list_birds)) #tol = 1e-07
+
+FDis_metric_birds <- data.frame(id=full_aa_amphibia$id, FDis=disp.func.birds$FDis)
+```
+
+###### 1.3.4. Mammals
+```{r, preparing traits}
+harm_list_mammals
+mammals_phy_traits <- harm_traits_mammals 
+
+atividade.mammals <- mammals_phy_traits %>% 
+  select(sp, cathemeral, crepuscular, diurnal, nocturnal) %>%
+  mutate_at(vars(2:4), list(~replace(., is.na(.), 0)))
+
+atividade.mammals <- as.tibble(atividade.mammals)
+
+atividade.mammals <- column_to_rownames(as.data.frame(atividade.mammals),var = "sp")
+
+dist_ativ_mammals <- prep.binary(atividade.mammals, col.blocks = 4, labels = "atividade_circadiana")
+
+# habitat
+habitat.mammals <- mammals_phy_traits %>% 
+  select(sp, fossorial, ground_dwelling, aboveground_dwelling, aquatic) %>%
+  mutate_at(vars(2:5), list(~replace(., is.na(.), 0)))
+
+habitat.mammals <- as.tibble(habitat.mammals)
+habitat.mammals <- column_to_rownames(as.data.frame(habitat.mammals), var = "sp")
+
+dist_habitat_mammals <- prep.binary(habitat.mammals, col.blocks = 4, labels = "habitat")
+
+# Thu Apr 01 16:01:33 2021 ------------------------------
+# Transformando para numeric traitss
+sum(is.na(mammals_phy_traits$"body_mass_g.avg.")) # 0 NA's
+
+mammals_phy_traits <- mammals_phy_traits %>% 
+  mutate_at("body_mass_g.avg.", list(as.numeric))
+class(mammals_phy_traits$body_mass_g.avg.)
+
+#Explorando body size
+ggplot(mammals_phy_traits, aes(body_mass_g.avg.))+
+  geom_density()
+
+bodysize.mammals <- data.frame(BodySize=log(mammals_phy_traits$body_mass_g.avg.))
+
+rownames(bodysize.mammals) <- mammals_phy_traits$sp
+dim(bodysize.mammals) #ok
+
+#Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
+trait.dist.mammals <- dist.ktab(ktab.list.df(list(dist_ativ_mammals, dist_habitat_mammals, as.data.frame(bodysize.mammals))), type = c("B","B","Q"), scan=TRUE)
+#10 = S2 coefficient of GOWER & LEGENDRE for multi-choice traits
+#1 = Euclidean for quantitative traits
+
+is.euclid(trait.dist.mammals)#TRUE =)
+sum(as.matrix(is.na(trait.dist.mammals)))#no NAs :)
+```
+```{r, fdis}
+# fdisp measures the functional dispersion (FDis) of a set of communities, as described by Laliberté and Legendre (2010).
+
+disp.func.mammals <- fdisp(trait.dist.mammals, as.matrix(harm_list_mammals)) #tol = 1e-07
+
+FDis_metric_mammals <- data.frame(id=harm_aa_amphibia$id, FDis=disp.func.mammals$FDis)
+```
+
+
+
+##### 2.0. Sensitivity analysis
+```{r}
+cor(full_rich_amphibia$richness,harm_rich_amphibia$richness,method="pearson")
+cor(full_rich_squamata$richness,harm_rich_squamata$richness,method="pearson")
+cor(full_rich_birds$richness,harm_rich_birds$richness,method="pearson")
+cor(full_rich_mammals$richness,harm_rich_mammals$richness,method="pearson")
+
+cor(harm_amphibia_dr,full_amphibia_dr)
+cor(harm_squamata_dr,full_squamata_dr)
+cor(harm_birds_dr,full_birds_dr)
+cor(harm_mammals_dr,full_mammals_dr)
+
+cor(harm_aa_amphibia$mean_age_arrival,full_aa_amphibia$mean_age_arrival)
+cor(harm_aa_squamata$mean_age_arrival,full_aa_squamata$mean_age_arrival)
+cor(harm_aa_birds$mean_age_arrival,full_aa_birds$mean_age_arrival)
+cor(harm_aa_mammals$mean_age_arrival,full_aa_mammals$mean_age_arrival)
+
+
+library("ggpubr")
+my_data = cbind(full = full_rich_amphibia$richness, harm = harm_rich_amphibia$richness)
+
+ggscatter(my_data, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "full dataset", ylab = "harmonized dataset")
+
+```
+
+##### 3.0. Composite variable climate
+##### 4.0. Save new datasets for Structural Equation Model (SEM)
