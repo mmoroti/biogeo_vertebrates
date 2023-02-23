@@ -20,14 +20,11 @@ library(picante) # diversification rate
 library(FD) # fdis
 library(conflicted) # resolve conflit in function 'select'
 conflict_prefer("select", "dplyr")
+library(ggpubr) # correlation plots
+library(cowplot) # plots
 ```
 
 ##### 0.1. Loading files
-
-```{r}
-# set directory
-```
-
 ```{r, composition}
 # Composition matrix
 # full list
@@ -99,7 +96,9 @@ abiotic_data <- read.table("abiotic_data.txt")
 ```
 
 ##### 1.0. Calculing metrics
+
 ##### 1.1. Richness
+
 We calculated the richness using the complete species composition dataset and the one with harmonized data, i.e. the same number of species in the phylogeny and in the trait list.
 
 ###### 1.1.1. Amphibia
@@ -158,8 +157,8 @@ harm_rich_mammals <- harm_list_mammals %>%
   mutate(richness = rowSums(harm_list_mammals))
 ```
 
-
 ##### 1.2. Diversification rate
+
 To calculate the rate of diversification per community, we need the full list dataset to have the same number of species as the tree.
 
 ###### 1.2.1. Amphibia
@@ -173,6 +172,7 @@ names(full_list_amphibia) <- gsub("Scinax_x.signatus", "Scinax_x-signatus", fixe
 remove.col.amp <- c("Bokermannohyla_izecksohni","Brachycephalus_sulfuratus","Chiasmocleis_cordeiroi","Chiasmocleis_crucis","Crossodactylus_bokermanni","Crossodactylus_fransciscanus","Crossodactylus_timbuhy","Dendropsophus_baileyi","Dendropsophus_bromeliaceus","Eleutherodactylus_bilineatus","Holoaden_pholeter","Melanophryniscus_milanoi","Melanophryniscus_xanthostomus","Scinax_strigilatus","Phyllodytes_megatympanum","Proceratophrys_fryi","Proceratophrys_mantiqueira","Proceratophrys_moratoi","Proceratophrys_phyllostoma","Proceratophrys_pombali","Pseudopaludicola_atragula","Pseudopaludicola_pocoto","Scinax_caissara","Scinax_canastrensis","Scinax_centralis","Scinax_kautskyi","Scinax_melanodactylus","Scinax_rossaferesae","Scinax_skuki","Trachycephalus_typhonius","Vitreorana_baliomma")
 list_amphibia_dr <- full_list_amphibia[,!(names(full_list_amphibia)%in% remove.col.amp)]
 ```
+
 ```{r, diversification rate}
 # full tree
 # 487 spp
@@ -380,13 +380,12 @@ dim(mammals_harm_matrix)
 harm_mammals_dr <- mammals_harm_matrix%*% harm_dr_mammals
 ```
 
-
-
-
 ##### 1.3. Functional dispersion (FDis)
-Now we will calculate functional dispersion (FDis) of the four groups of terrestrial vertebrates. 
+
+Now we will calculate functional dispersion (FDis) of the four groups of terrestrial vertebrates.
 
 ###### 1.3.1. Anura
+
 ```{r, preparing traits}
 # dataframe copy and reorder, after that, reset index
 traits.amphibia.phy <- harm_traits_amphibia[order(harm_traits_amphibia$sp),]
@@ -434,6 +433,7 @@ rownames(bodysize) <- traits.amphibia.phy$sp
 head(bodysize)
 nrow(bodysize)
 ```
+
 ```{r, fdis}
 #Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
 trait.dist <- dist.ktab(ktab.list.df(list(dist_ativ, dist_habitat, as.data.frame(bodysize))), type = c("B","B","Q"), scan=TRUE)
@@ -452,6 +452,7 @@ FDis_metric_amphibia <- data.frame(id=harm_aa_amphibia$id, FDis=disp.func.amphib
 ```
 
 ###### 1.3.2. Squamata
+
 ```{r, preparing traits}
 # Copy dataset 
 # adjustements in number
@@ -512,8 +513,8 @@ FDis_metric_reptiles <- data.frame(id=harm_aa_squamata$id, FDis=disp.func.reptil
 ```
 
 ###### 1.3.3. Birds
+
 ```{r, preparing traits}
-names(short.birds.traits)
 short.birds.traits <- harm_traits_birds
 
 habitat.birds <- short.birds.traits %>% 
@@ -538,15 +539,6 @@ bodysize.birds <- data.frame(BodySize=log(body.mass.birds$body.mass))
 head(bodysize.birds) #ok
 nrow(bodysize.birds) #638, ok
 
-#Explorando range extension
-sum(is.na(short.birds.traits$range_m2))#ok
-
-range.ext.birds <- data.frame(range.extension=(as.numeric(as.character(short.birds.traits$range_m2))))
-
-#Unindo traits quantitativos em um conjunto de dados
-quant.traits.birds <- cbind(bodysize.birds, range.ext.birds)
-sum(is.na(quant.traits.birds))
-
 #atividade_bird
 atividade_bird <- short.birds.traits %>% 
   select(sp, Nocturnal, PelagicSpecialist) %>%
@@ -556,6 +548,7 @@ atividade_bird<- as.tibble(atividade_bird)
 
 atividade_bird <- column_to_rownames(as.data.frame(atividade_bird), var = "sp")
 ```
+
 ```{r, fdis}
 #Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
 trait.dist.birds <- dist.ktab(ktab.list.df(list(atividade_bird, dist_habitat_birds, as.data.frame(bodysize.birds))), type = c("D","F","Q"), scan=TRUE)
@@ -572,6 +565,7 @@ FDis_metric_birds <- data.frame(id=full_aa_amphibia$id, FDis=disp.func.birds$FDi
 ```
 
 ###### 1.3.4. Mammals
+
 ```{r, preparing traits}
 harm_list_mammals
 mammals_phy_traits <- harm_traits_mammals 
@@ -621,6 +615,7 @@ trait.dist.mammals <- dist.ktab(ktab.list.df(list(dist_ativ_mammals, dist_habita
 is.euclid(trait.dist.mammals)#TRUE =)
 sum(as.matrix(is.na(trait.dist.mammals)))#no NAs :)
 ```
+
 ```{r, fdis}
 # fdisp measures the functional dispersion (FDis) of a set of communities, as described by Laliberté and Legendre (2010).
 
@@ -630,34 +625,154 @@ FDis_metric_mammals <- data.frame(id=harm_aa_amphibia$id, FDis=disp.func.mammals
 ```
 
 
-
 ##### 2.0. Sensitivity analysis
+##### 2.1. Metrics correlation
+###### 2.1.1. Richness
 ```{r}
-cor(full_rich_amphibia$richness,harm_rich_amphibia$richness,method="pearson")
-cor(full_rich_squamata$richness,harm_rich_squamata$richness,method="pearson")
-cor(full_rich_birds$richness,harm_rich_birds$richness,method="pearson")
-cor(full_rich_mammals$richness,harm_rich_mammals$richness,method="pearson")
+richness_amphibia <- as.data.frame(cbind(full = full_rich_amphibia$richness, harm = harm_rich_amphibia$richness))
+richness_squamata <- as.data.frame(cbind(full = full_rich_squamata$richness, harm = harm_rich_squamata$richness))
+richness_birds <- as.data.frame(cbind(full = full_rich_birds$richness, harm = harm_rich_birds$richness))
+richness_mammals <- as.data.frame(cbind(full = full_rich_mammals$richness, harm = harm_rich_mammals$richness))
 
-cor(harm_amphibia_dr,full_amphibia_dr)
-cor(harm_squamata_dr,full_squamata_dr)
-cor(harm_birds_dr,full_birds_dr)
-cor(harm_mammals_dr,full_mammals_dr)
-
-cor(harm_aa_amphibia$mean_age_arrival,full_aa_amphibia$mean_age_arrival)
-cor(harm_aa_squamata$mean_age_arrival,full_aa_squamata$mean_age_arrival)
-cor(harm_aa_birds$mean_age_arrival,full_aa_birds$mean_age_arrival)
-cor(harm_aa_mammals$mean_age_arrival,full_aa_mammals$mean_age_arrival)
-
-
-library("ggpubr")
-my_data = cbind(full = full_rich_amphibia$richness, harm = harm_rich_amphibia$richness)
-
-ggscatter(my_data, x = "full", y = "harm", 
+amphibia_rich <- ggscatter(richness_amphibia, x = "full", y = "harm", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
-          xlab = "full dataset", ylab = "harmonized dataset")
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Amphibia")
 
+squamata_rich <- ggscatter(richness_squamata, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Squamata")
+
+birds_rich <- ggscatter(richness_birds, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Birds")
+
+mammals_rich <- ggscatter(richness_mammals, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Mammals")
+
+
+rich <- plot_grid(amphibia_rich, squamata_rich, birds_rich, mammals_rich, align = "h", rel_widths = c(1, 1),labels = "AUTO")
+
+# now add the title
+title <- ggdraw() + 
+  draw_label("Richness",fontface = 'bold',x = 0,hjust = 0) +
+  theme(# add margin on the left of the drawing canvas,
+    # so title is aligned with left edge of first plot
+    plot.margin = margin(0, 0, 0, 7))
+
+plot_grid(title, rich,ncol = 1,rel_heights = c(0.1, 1))
+  # rel_heights values control vertical title margins
+```
+###### 2.1.1. Diversification rate
+```{r}
+dr_amphibia <- as.data.frame(cbind(full = full_amphibia_dr, harm = harm_amphibia_dr))
+colnames(dr_amphibia) <- c('full', 'harm')
+
+dr_squamata <- as.data.frame(cbind(full = full_squamata_dr, harm = harm_squamata_dr))
+colnames(dr_squamata) <- c('full', 'harm')
+
+dr_birds <- as.data.frame(cbind(full = full_birds_dr, harm = harm_birds_dr))
+colnames(dr_birds) <- c('full', 'harm')
+
+dr_mammals <- as.data.frame(cbind(full = full_mammals_dr, harm = harm_mammals_dr))
+colnames(dr_mammals) <- c('full', 'harm')
+
+amphibia_dr <- ggscatter(dr_amphibia, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Amphibia")
+
+squamata_dr <- ggscatter(dr_squamata, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Squamata")
+
+birds_dr <- ggscatter(dr_birds, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Birds")
+
+mammals_dr <- ggscatter(dr_mammals, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Mammals")
+
+
+dr <- plot_grid(amphibia_dr, squamata_dr, birds_dr, mammals_dr, align = "h", rel_widths = c(1, 1),labels = "AUTO")
+
+# now add the title
+title <- ggdraw() + 
+  draw_label("Diversification rate",fontface = 'bold',x = 0,hjust = 0) +
+  theme(# add margin on the left of the drawing canvas,
+    # so title is aligned with left edge of first plot
+    plot.margin = margin(0, 0, 0, 7))
+
+plot_grid(title, dr,ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1))
+```
+###### 2.1.3. Assemblage age
+```{r}
+aa_amphibia <- as.data.frame(cbind(full = full_aa_amphibia$mean_age_arrival, harm = harm_aa_amphibia$mean_age_arrival))
+aa_squamata <- as.data.frame(cbind(full = full_aa_squamata$mean_age_arrival, harm = harm_aa_squamata$mean_age_arrival))
+aa_birds <- as.data.frame(cbind(full = full_aa_birds$mean_age_arrival, harm = harm_aa_birds$mean_age_arrival))
+aa_mammals <- as.data.frame(cbind(full = full_aa_mammals$mean_age_arrival, harm = harm_aa_mammals$mean_age_arrival))
+
+amphibia_aa <- ggscatter(aa_amphibia, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Amphibia")
+
+squamata_aa <- ggscatter(aa_squamata, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Squamata")
+
+birds_aa <- ggscatter(aa_birds, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Birds")
+
+mammals_aa <- ggscatter(aa_mammals, x = "full", y = "harm", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Full dataset", ylab = "Harmonized dataset",
+          main="Mammals")
+
+
+aa <- plot_grid(amphibia_aa, squamata_aa, birds_aa, mammals_aa, align = "h", rel_widths = c(1, 1),labels = "AUTO")
+
+# now add the title
+title <- ggdraw() + 
+  draw_label("Assemblage age",fontface = 'bold',x = 0,hjust = 0) +
+  theme(# add margin on the left of the drawing canvas,
+    # so title is aligned with left edge of first plot
+    plot.margin = margin(0, 0, 0, 7))
+
+plot_grid(title, aa,ncol = 1,rel_heights = c(0.1, 1))
+  # rel_heights values control vertical title margins
 ```
 
+
+##### 2.2. Spatial correlation
+
+
+
 ##### 3.0. Composite variable climate
+
 ##### 4.0. Save new datasets for Structural Equation Model (SEM)

@@ -84,6 +84,7 @@ mammals_full_phy <- read.nexus("https://raw.githubusercontent.com/n8upham/MamPhy
 ```
 
 ##### 1.0. Data handling
+
 Here we made some adjustments to the nomenclature to match traits, phylogenies and assemblage composition and preparing the non-equilibrium variables (Climatic, productivity and topography heterogene).
 
 ##### 1.1. Change nomenclatures names and match with phylogeny and traits
