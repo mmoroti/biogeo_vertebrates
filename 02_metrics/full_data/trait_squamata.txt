@@ -1,4 +1,4 @@
-"sp" "SVL..mm." "diurnal" "nocturnal" "Terrestre" "Arboricola" "Fossorial" "Aquatica"
+"sp" "svl_mm" "diurnal" "nocturnal" "Terrestre" "Arboricola" "Fossorial" "Aquatica"
 "1" "Acratosaura_mentalis" NA 1 0 1 0 1 0
 "2" "Acratosaura_spinosa" "53" 1 0 1 0 0 0
 "3" "Alexandresaurus_camacan" "66" NA NA 1 0 0 0
@@ -216,8 +216,8 @@
 "234" "Leposoma_puk" "41.8" 1 0 1 0 0 0
 "235" "Leposoma_scincoides" "45.9" NA NA 1 0 0 0
 "236" "Leposoma_sinepollex" "30.5" NA NA 1 0 0 0
-"237" "Leptodeira_annulata" "" 0 1 1 1 0 0
-"238" "Leptophis_ahaetulla" "" 1 0 1 1 0 0
+"237" "Leptodeira_annulata" "782" 0 1 1 1 0 0
+"238" "Leptophis_ahaetulla" "1126" 1 0 1 1 0 0
 "239" "Lioheterophis_iheringi" NA NA NA NA NA NA NA
 "240" "Liolaemus_arambarensis" "49.7" 1 0 1 0 0 0
 "241" "Liolaemus_lutzae" "60.8" 1 0 1 0 0 0
@@ -245,7 +245,7 @@
 "263" "Micrurus_decoratus" "670" 1 0 0 0 1 0
 "264" "Micrurus_frontalis" "1418" 1 1 0 0 1 0
 "265" "Micrurus_ibiboboca" "1330" 1 0 0 0 1 0
-"266" "Micrurus_lemniscatus" "" 1 1 0 0 1 0
+"266" "Micrurus_lemniscatus" "1220" 1 1 0 0 1 0
 "267" "Micrurus_potyguara" "916" 1 1 0 0 1 0
 "268" "Micrurus_pyrrhocryptus" "1747" NA NA 0 0 1 0
 "269" "Micrurus_silviae" "1506" 1 1 1 0 0 0
@@ -259,7 +259,7 @@
 "279" "Oxyrhopus_clathratus" "800" 0 1 1 0 0 0
 "280" "Oxyrhopus_formosus" "1027" 0 1 1 0 0 0
 "281" "Oxyrhopus_guibei" "1080" 1 1 1 0 0 0
-"282" "Oxyrhopus_petolarius" "" 1 1 1 0 0 0
+"282" "Oxyrhopus_petolarius" "910" 1 1 1 0 0 0
 "283" "Oxyrhopus_rhombifer" "" 0 1 NA NA NA NA
 "284" "Oxyrhopus_trigeminus" "860" 1 1 1 0 0 0
 "285" "Paleosuchus_palpebrosus" NA NA NA NA NA NA NA
@@ -375,7 +375,7 @@
 "405" "Xenodon_merremi" "446" 1 0 1 0 0 0
 "406" "Xenodon_nattereri" "253" 1 0 1 0 0 0
 "407" "Xenodon_neuwiedii" "800" 1 0 1 0 0 0
-"408" "Xenodon_rabdocephalus" "654 " 1 0 1 0 0 0
+"408" "Xenodon_rabdocephalus" "654" 1 0 1 0 0 0
 "409" "Xenodon_severus" "1060" 1 0 1 0 0 0
 "410" "Xenopholis_scalaris" "354" 0 1 1 0 0 0
 "411" "Xenopholis_undulatus" "465" 0 1 1 0 0 0

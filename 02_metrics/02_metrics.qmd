@@ -29,6 +29,7 @@ library(ggtree) # plot tree with traits
 ```
 
 ##### 0.1. Loading files
+
 ```{r, composition}
 # Composition matrix
 # full list
@@ -633,7 +634,6 @@ disp.func.mammals <- fdisp(trait.dist.mammals, as.matrix(harm_list_mammals)) #to
 FDis_metric_mammals <- data.frame(id=harm_aa_amphibia$id, FDis=disp.func.mammals$FDis)
 ```
 
-
 ##### 2.0. Sensitivity analysis
 ##### 2.1. Metrics correlation
 ###### 2.1.1. Richness
@@ -680,7 +680,9 @@ title <- ggdraw() +
 plot_grid(title, rich,ncol = 1,rel_heights = c(0.1, 1))
   # rel_heights values control vertical title margins
 ```
+
 ###### 2.1.1. Diversification rate
+
 ```{r}
 dr_amphibia <- as.data.frame(cbind(full_dr = full_amphibia_dr, harm_dr = harm_amphibia_dr))
 colnames(dr_amphibia) <- c('full_dr', 'harm_dr')
@@ -734,6 +736,7 @@ plot_grid(title, dr,ncol = 1,
 ```
 
 ###### 2.1.3. Assemblage age
+
 ```{r}
 aa_amphibia <- as.data.frame(cbind(full_aa = full_aa_amphibia$mean_age_arrival, harm_aa = harm_aa_amphibia$mean_age_arrival))
 aa_squamata <- as.data.frame(cbind(full_aa = full_aa_squamata$mean_age_arrival, harm_aa = harm_aa_squamata$mean_age_arrival))
@@ -779,6 +782,7 @@ plot_grid(title, aa,ncol = 1,rel_heights = c(0.1, 1))
 ```
 
 
+
 ##### 2.2. Spatial correlation
 ```{r, preparing data for spatial correlation}
 # amphibia
@@ -821,7 +825,6 @@ mammals_data <- left_join(mammals_data, aa_mammals, by = "id")
 mammals_data <- left_join(mammals_data, FDis_metric_mammals, by = "id")
 mammals_data <- left_join(mammals_data,richness_mammals, by="id" )
 ```
-
 ```{r, spatial correlation for sensitivity analysis}
 # amphibia 
 # grid center only coordinates from each id
@@ -844,9 +847,8 @@ cor.spatial(mammals_data$full_dr, mammals_data$harm_dr, grid_center) # 0.773 +- 
 cor.spatial(mammals_data$full_rich, mammals_data$harm_rich, grid_center) # 0.838 +- 0.002
 cor.spatial(mammals_data$full_aa, mammals_data$harm_aa, grid_center) # 0.037 +- 0.002
 ```
-
 ##### 2.3. Missing traits in phylogeny
-```{r}
+```{r, amphibia}
 # handling traits
 traits_amphibia <- full_traits_amphibia[-27,] # aplasto wey appear 2x
 
@@ -904,10 +906,192 @@ gheatmap(phy, dados, offset=8, width=0.6,
   scale_fill_manual(breaks=c("Body size","Circadian activity","Habitat"), 
                     values=c("#ffb313", "firebrick", "darkgreen"), name="Traits")
 ```
+```{r, squamata}
+# prune sample with traits and phylogeny
+traits_squamata <- full_traits_squamata
+rownames(traits_squamata) <- traits_squamata[,1]
+prune.tree.squa <- t(traits_squamata)
+tree_squa <- prune.sample(prune.tree.squa, full_phy_squamata)
 
-```{r}
+# remove
+remove_squa <- c("Kinosternon_scorpioides","Paleosuchus_palpebrosus")
+traits_squamata <- traits_squamata[!traits_squamata$sp %in% remove_squa,]
 
+# check data
+nrow(traits_squamata)
+tree_squa
+
+###--- handling trait data for plot
+###---
+head(traits_squamata[,-1])
+dados <- traits_squamata[,-1]
+
+# Loop através das colunas e aplicar as substituições correspondentes
+for (coluna in names(dados)) {
+  for (linha in seq_along(dados[, coluna])) {
+    if (!is.na(dados[linha, coluna])) {
+      # Verificar qual coluna está sendo modificada e aplicar a substituição correspondente
+      if (coluna == "svl_mm") {
+        dados[linha, coluna] <- "Body size"
+      } else if (coluna == "diurnal") {
+        dados[linha, coluna] <- "Circadian activity"
+      } else if (coluna == "nocturnal") {
+        dados[linha, coluna] <- "Circadian activity"
+      } else if (coluna == "Terrestre") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "Arboricola") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "Fossorial") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "Aquatica") {
+        dados[linha, coluna] <- "Habitat"
+      }
+    }
+  }
+}
+dados
+# plot
+phy <- ggtree(tree_squa,layout = "circular")
+
+gheatmap(phy, dados, offset=8, width=0.6, 
+         colnames=FALSE, legend_title="Traits") +
+  scale_fill_manual(breaks=c("Body size","Circadian activity","Habitat"), 
+                    values=c("#ffb313", "firebrick", "darkgreen"), name="Traits")
+```
+```{r, birds}
+# prune sample with traits and phylogeny
+traits_birds <- full_traits_birds # copy dataset
+rownames(traits_birds) <- traits_birds[,1]
+prune.tree.birds <- t(traits_birds)
+tree_birds <- prune.sample(prune.tree.birds, full_phy_birds)
+
+View(full_traits_birds)
+# remove
+remove_birds <- c("Anodorhynchus_glaucus","Aramides_cajaneus","Cichlocolaptes_mazarbarnetti","Formicivora_acutirostris","Ortalis_squamata","Sporophila_maximiliani","Synallaxis_cinerea","Vireo_chivi","Porphyriops_melanops","Celeus_galeatus","Paraclaravis_geoffroyi","Chordeiles_nacunda","Nycticryphes_semicollaris","Eupsittula_aurea","Eupsittula_cactorum","Geranoaetus_albicaudatus","Spinus_magellanicus","Pionus_reichenowi","Hydropsalis_maculicaudus","Myiothlypis_leucophrys","Mareca_sibilatrix","Cercomacroides_laeta","Anumara_forbesi","Cyanoloxia_brissonii","Griseotyrannus_aurantioatrocristatus","Myrmoderus_loricatus","Rhopias_gularis","Stigmatura_bahiae","Pseudopipra_pipra","Ceratopipra_rubrocapilla","Philohydor_lictor","Microspingus_lateralis","Tangara_ornata","Tangara_sayaca","Systellura_longirostris","Nyctipolus_hirundinaceus","Psittacara_leucophthalmus","Rupornis_magnirostris","Sarkidiornis_sylvicola","Stephanoxis_loddigesii","Sternula_superciliaris","Formicivora_paludicola","Elaenia_sordida","Sclerurus_cearensis","Scytalopus_gonzagai" ,"Scytalopus_petrophilus","Sporophila_pileata","Lipaugus_conditus", "Xiphorhynchus_atlanticus","Microspingus_cinereus","Tangara_brasiliensis" ,"Pipraeidea_bonariensis" , "Myrmoderus_squamosus" ,"Anabacerthia_lichtensteini","Ortalis_araucuan"  ,"Orthopsittaca_manilatus","Parabuteo_leucorrhous" ,"Pseudastur_polionotus" ,"Agelaioides_fringillarius" ,"Basileuterus_auricapilla" ,"Myiothlypis_rivularis","Tangara_cyanomelas" , "Tangara_flava","Asthenes_moreirae","Automolus_lammi","Icterus_pyrrhopterus","Calidris_subruficollis","Amazilia_sapphirina" ,"Antrostomus_sericocaudatus", "Buteogallus_coronatus","Celeus_tinnunculus" ,"Synallaxis_hellmayri" ,"Herpsilochmus_scapularis","Clibanornis_rectirostris", "Sporophila_beltoni","Celeus_ochraceus", "Pygochelidon_melanoleuca","Atticora_tibialis" ,"Hirundinea_bellicosa","Serpophaga_griseicapilla","Antrostomus_rufus", "Myiothlypis_flaveola", "Myiothlypis_leucoblephara" ,"Spinus_yarrellii","Islerothraupis_cristata","Tangara_palmarum","Cantorchilus_leucotis", "Cantorchilus_longirostris","Asemospiza_fuliginosa","Microspingus_cabanisi" ,"Pheugopedius_genibarbis" , "Lipaugus_ater","Myrmoderus_ruficauda" ,"Phalcoboenus_chimango", "Psittacara_acuticaudatus" ,"Sporophila_angolensis")
+traits_birds <- traits_birds[!traits_birds$sp %in% remove_birds,]
+
+# check data
+nrow(traits_birds)
+tree_birds
+
+###--- handling trait data for plot
+###---
+#head(traits_birds[,-1])
+dados <- traits_birds[,-1]
+
+# Loop através das colunas e aplicar as substituições correspondentes
+for (coluna in names(dados)) {
+  for (linha in seq_along(dados[, coluna])) {
+    if (!is.na(dados[linha, coluna])) {
+      # Verificar qual coluna está sendo modificada e aplicar a substituição correspondente
+      if (coluna == "BodyMass.Value") {
+        dados[linha, coluna] <- "Body mass"
+      } else if (coluna == "Nocturnal") {
+        dados[linha, coluna] <- "Circadian activity"
+      } else if (coluna == "ForStrat.watbelowsurf") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "ForStrat.wataroundsurf") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "ForStrat.ground") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "ForStrat.understory") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "ForStrat.midhigh") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "ForStrat.canopy") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "ForStrat.aerial") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "PelagicSpecialist") {
+        dados[linha, coluna] <- "Habitat"
+      }
+    }
+  }
+}
+
+# plot
+phy <- ggtree(tree_birds,layout = "circular")+geom_tiplab(size=3)
+
+gheatmap(phy, dados, offset=8, width=0.6, 
+         colnames=FALSE, legend_title="Traits") +
+  scale_fill_manual(breaks=c("Body mass","Circadian activity","Habitat"), 
+                    values=c("#ffb313", "firebrick", "darkgreen"), name="Traits")
+```
+```{r, mammals}
+# prune sample with traits and phylogeny
+traits_mammals <- full_traits_mammals
+rownames(traits_mammals) <- traits_mammals[,1]
+prune.tree.mammals <- t(traits_mammals)
+tree_mammals <- prune.sample(prune.tree.mammals, full_phy_mammals)
+
+# remove
+remove_mammals <- c("Abrawayaomys_chebezi","Abrawayaomys_ruschii","Akodon_sanctipaulensis","Brucepattersonius_griserufescens","Brucepattersonius_guarani","Brucepattersonius_misionensis","Brucepattersonius_paradisus","Cabassous_tatouay","Callicebus_barbarabrownae","Callicebus_melanochir","Callithrix_flaviceps","Dasyprocta_iacki", "Dasyprocta_prymnolopha","Dasypus_hybridus","Dasypus_septemcinctus" ,"Graomys_chacoensis" ,"Hylaeamys_oniscus", "Leontopithecus_caissara","Leontopithecus_chrysopygus","Leopardus_geoffroyi","Leopardus_guttulus" ,"Marmosa_paraguayana","Monodelphis_unistriata","Nectomys_rattus","Oxymycterus_angularis" ,"Oxymycterus_hispidus","Oxymycterus_roberti" ,"Phaenomys_ferrugineus" ,"Phyllomys_kerri" ,"Phyllomys_medius","Phyllomys_thomasi","Phyllomys_unicolor","Reithrodon_typicus","Sapajus_cay", "Sylvilagus_tapetillus","Tolypeutes_tricinctus","Trinomys_mirapitanga","Wilfredomys_oenax")
+traits_mammals <- traits_mammals[!traits_mammals$sp %in% remove_mammals,]
+
+# check data
+nrow(traits_mammals)
+tree_mammals
+
+###--- handling trait data for plot
+###---
+dados <- traits_mammals[,-1]
+
+# Loop através das colunas e aplicar as substituições correspondentes
+for (coluna in names(dados)) {
+  for (linha in seq_along(dados[, coluna])) {
+    if (!is.na(dados[linha, coluna])) {
+      # Verificar qual coluna está sendo modificada e aplicar a substituição correspondente
+      if (coluna == "body_mass_g.avg.") {
+        dados[linha, coluna] <- "Body mass"
+      } else if (coluna == "cathemeral") {
+        dados[linha, coluna] <- "Circadian activity"
+      } else if (coluna == "crepuscular") {
+        dados[linha, coluna] <- "Circadian activity"
+      } else if (coluna == "diurnal") {
+        dados[linha, coluna] <- "Circadian activity"
+      } else if (coluna == "nocturnal") {
+        dados[linha, coluna] <- "Circadian activity"
+      } else if (coluna == "fossorial") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "ground_dwelling") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "aboveground_dwelling") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "aquatic") {
+        dados[linha, coluna] <- "Habitat"
+      }
+    }
+  }
+}
+dados
+# plot
+phy <- ggtree(tree_mammals,layout = "circular")
+
+gheatmap(phy, dados, offset=8, width=0.6, 
+         colnames=FALSE, legend_title="Traits") +
+  scale_fill_manual(breaks=c("Body mass","Circadian activity","Habitat"), 
+                    values=c("#ffb313", "firebrick", "darkgreen"), name="Traits")
 ```
 
 
 ##### 3.0. Save new datasets for Structural Equation Model (SEM)
+Here we will consider using richness and diversification rate data that have the same number of species that were used to calculate the traits (here called harmonized data). Our sensitivity analysis showed a high correlation between these data, so there is no influence on subsequent analyses. On the other hand, the assemblage age metric uses complete datasets (here called full), since we found discrepant and uncorrelated values in our sensitivity analysis, which could change our results.
+
+```{r}
+amphibia_data <- as.data.frame(cbind(id=richness_amphibia$id,rich_amp=richness_amphibia$harm_rich,dr_amp= dr_amphibia$harm_dr, aa_amp = aa_amphibia$full_aa, fdis_amp = FDis_metric_amphibia$FDis))
+
+squamata_data <- as.data.frame (cbind(id=richness_squamata$id,rich_squa=richness_squamata$harm_rich,dr_squa= dr_squamata$harm_dr, aa_squa = aa_squamata$full_aa, fdis_squa = FDis_metric_reptiles$FDis))
+
+birds_data <- as.data.frame(cbind(id=richness_birds$id,rich_birds=richness_birds$harm_rich,dr_birds= dr_birds$harm_dr, aa_birds = aa_birds$full_aa, fdis_birds = FDis_metric_birds$FDis))
+
+mammals_data <- as.data.frame(cbind(id=richness_mammals$id,rich_mammals=richness_mammals$harm_rich,dr_mammals= dr_mammals$harm_dr, aa_mammals = aa_mammals$full_aa, fdis_mammals = FDis_metric_mammals$FDis))
+
+# join dataset
+full_dataset <- left_join(amphibia_data, squamata_data, by="id")
+full_dataset <- left_join(full_dataset, birds_data, by="id")
+full_dataset <- left_join(full_dataset, mammals_data, by="id")
+  
+### save dataset  
+setwd("E:/repos/biogeo_vertebrates-main")
+write.table(full_dataset, "03_sem/dataset_metrics.txt")
+```
