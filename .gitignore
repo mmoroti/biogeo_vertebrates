@@ -8,3 +8,7 @@
 /trait_data
 .Rproj.user
 /01_processingdata/abiotic_data/elevation_1KMmd_GMTEDmd.tif
+*gridmacro.shx
+*gridmacro.shp
+*gridmacro.dbf
+*gridmacro.cpg

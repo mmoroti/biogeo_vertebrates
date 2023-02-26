@@ -22,6 +22,10 @@ library(conflicted) # resolve conflit in function 'select'
 conflict_prefer("select", "dplyr")
 library(ggpubr) # correlation plots
 library(cowplot) # plots
+library(rgdal) #spatial data
+library(sf) # spatial data
+library(SpatialPack) #spatial correlation analysis
+library(ggtree) # plot tree with traits
 ```
 
 ##### 0.1. Loading files
@@ -90,9 +94,12 @@ harm_aa_birds <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_b
 harm_aa_mammals <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_mammals_harm.txt') #166
 ```
 
-```{r, abiotic data}
-# climate data
-abiotic_data <- read.table("abiotic_data.txt")
+```{r,message=FALSE, abiotic data}
+# shapefile data
+grid_ma <- readOGR("gridmacro.shp") #432 grids
+grid_center <- coordinates(grid_ma) # obtain center of grid
+grid_ma <- st_as_sf(grid_ma) # convert to sf object
+grid_ma <- st_set_crs(grid_ma, 4326) # convert to WGS84
 ```
 
 ##### 1.0. Calculing metrics
@@ -113,6 +120,8 @@ full_rich_amphibia <- full_list_amphibia %>%
 harm_rich_amphibia <- harm_list_amphibia %>%
   mutate_at(c(names(harm_list_amphibia)), as.numeric) %>%
   mutate(richness = rowSums(harm_list_amphibia))
+
+View(harm_rich_amphibia)
 ```
 
 ###### 1.1.2. Squamata
@@ -629,30 +638,30 @@ FDis_metric_mammals <- data.frame(id=harm_aa_amphibia$id, FDis=disp.func.mammals
 ##### 2.1. Metrics correlation
 ###### 2.1.1. Richness
 ```{r}
-richness_amphibia <- as.data.frame(cbind(full = full_rich_amphibia$richness, harm = harm_rich_amphibia$richness))
-richness_squamata <- as.data.frame(cbind(full = full_rich_squamata$richness, harm = harm_rich_squamata$richness))
-richness_birds <- as.data.frame(cbind(full = full_rich_birds$richness, harm = harm_rich_birds$richness))
-richness_mammals <- as.data.frame(cbind(full = full_rich_mammals$richness, harm = harm_rich_mammals$richness))
+richness_amphibia <- as.data.frame(cbind(full_rich = full_rich_amphibia$richness, harm_rich = harm_rich_amphibia$richness))
+richness_squamata <- as.data.frame(cbind(full_rich = full_rich_squamata$richness, harm_rich = harm_rich_squamata$richness))
+richness_birds <- as.data.frame(cbind(full_rich = full_rich_birds$richness, harm_rich = harm_rich_birds$richness))
+richness_mammals <- as.data.frame(cbind(full_rich = full_rich_mammals$richness, harm_rich = harm_rich_mammals$richness))
 
-amphibia_rich <- ggscatter(richness_amphibia, x = "full", y = "harm", 
+amphibia_rich <- ggscatter(richness_amphibia, x = "full_rich", y = "harm_rich", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
           main="Amphibia")
 
-squamata_rich <- ggscatter(richness_squamata, x = "full", y = "harm", 
+squamata_rich <- ggscatter(richness_squamata, x = "full_rich", y = "harm_rich", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
           main="Squamata")
 
-birds_rich <- ggscatter(richness_birds, x = "full", y = "harm", 
+birds_rich <- ggscatter(richness_birds, x = "full_rich", y = "harm_rich", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
           main="Birds")
 
-mammals_rich <- ggscatter(richness_mammals, x = "full", y = "harm", 
+mammals_rich <- ggscatter(richness_mammals, x = "full_rich", y = "harm_rich", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
@@ -673,37 +682,37 @@ plot_grid(title, rich,ncol = 1,rel_heights = c(0.1, 1))
 ```
 ###### 2.1.1. Diversification rate
 ```{r}
-dr_amphibia <- as.data.frame(cbind(full = full_amphibia_dr, harm = harm_amphibia_dr))
-colnames(dr_amphibia) <- c('full', 'harm')
+dr_amphibia <- as.data.frame(cbind(full_dr = full_amphibia_dr, harm_dr = harm_amphibia_dr))
+colnames(dr_amphibia) <- c('full_dr', 'harm_dr')
 
-dr_squamata <- as.data.frame(cbind(full = full_squamata_dr, harm = harm_squamata_dr))
-colnames(dr_squamata) <- c('full', 'harm')
+dr_squamata <- as.data.frame(cbind(full_dr = full_squamata_dr, harm_dr = harm_squamata_dr))
+colnames(dr_squamata) <- c('full_dr', 'harm_dr')
 
-dr_birds <- as.data.frame(cbind(full = full_birds_dr, harm = harm_birds_dr))
-colnames(dr_birds) <- c('full', 'harm')
+dr_birds <- as.data.frame(cbind(full_dr = full_birds_dr, harm_dr = harm_birds_dr))
+colnames(dr_birds) <- c('full_dr', 'harm_dr')
 
-dr_mammals <- as.data.frame(cbind(full = full_mammals_dr, harm = harm_mammals_dr))
-colnames(dr_mammals) <- c('full', 'harm')
+dr_mammals <- as.data.frame(cbind(full_dr = full_mammals_dr, harm_dr = harm_mammals_dr))
+colnames(dr_mammals) <- c('full_dr', 'harm_dr')
 
-amphibia_dr <- ggscatter(dr_amphibia, x = "full", y = "harm", 
+amphibia_dr <- ggscatter(dr_amphibia, x = "full_dr", y = "harm_dr", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
           main="Amphibia")
 
-squamata_dr <- ggscatter(dr_squamata, x = "full", y = "harm", 
+squamata_dr <- ggscatter(dr_squamata, x = "full_dr", y = "harm_dr", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
           main="Squamata")
 
-birds_dr <- ggscatter(dr_birds, x = "full", y = "harm", 
+birds_dr <- ggscatter(dr_birds, x = "full_dr", y = "harm_dr", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
           main="Birds")
 
-mammals_dr <- ggscatter(dr_mammals, x = "full", y = "harm", 
+mammals_dr <- ggscatter(dr_mammals, x = "full_dr", y = "harm_dr", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
@@ -723,32 +732,33 @@ plot_grid(title, dr,ncol = 1,
   # rel_heights values control vertical title margins
   rel_heights = c(0.1, 1))
 ```
+
 ###### 2.1.3. Assemblage age
 ```{r}
-aa_amphibia <- as.data.frame(cbind(full = full_aa_amphibia$mean_age_arrival, harm = harm_aa_amphibia$mean_age_arrival))
-aa_squamata <- as.data.frame(cbind(full = full_aa_squamata$mean_age_arrival, harm = harm_aa_squamata$mean_age_arrival))
-aa_birds <- as.data.frame(cbind(full = full_aa_birds$mean_age_arrival, harm = harm_aa_birds$mean_age_arrival))
-aa_mammals <- as.data.frame(cbind(full = full_aa_mammals$mean_age_arrival, harm = harm_aa_mammals$mean_age_arrival))
+aa_amphibia <- as.data.frame(cbind(full_aa = full_aa_amphibia$mean_age_arrival, harm_aa = harm_aa_amphibia$mean_age_arrival))
+aa_squamata <- as.data.frame(cbind(full_aa = full_aa_squamata$mean_age_arrival, harm_aa = harm_aa_squamata$mean_age_arrival))
+aa_birds <- as.data.frame(cbind(full_aa = full_aa_birds$mean_age_arrival, harm_aa = harm_aa_birds$mean_age_arrival))
+aa_mammals <- as.data.frame(cbind(full_aa = full_aa_mammals$mean_age_arrival, harm_aa = harm_aa_mammals$mean_age_arrival))
 
-amphibia_aa <- ggscatter(aa_amphibia, x = "full", y = "harm", 
+amphibia_aa <- ggscatter(aa_amphibia, x = "full_aa", y = "harm_aa", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
           main="Amphibia")
 
-squamata_aa <- ggscatter(aa_squamata, x = "full", y = "harm", 
+squamata_aa <- ggscatter(aa_squamata, x = "full_aa", y = "harm_aa", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
           main="Squamata")
 
-birds_aa <- ggscatter(aa_birds, x = "full", y = "harm", 
+birds_aa <- ggscatter(aa_birds, x = "full_aa", y = "harm_aa", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
           main="Birds")
 
-mammals_aa <- ggscatter(aa_mammals, x = "full", y = "harm", 
+mammals_aa <- ggscatter(aa_mammals, x = "full_aa", y = "harm_aa", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Full dataset", ylab = "Harmonized dataset",
@@ -770,9 +780,134 @@ plot_grid(title, aa,ncol = 1,rel_heights = c(0.1, 1))
 
 
 ##### 2.2. Spatial correlation
+```{r, preparing data for spatial correlation}
+# amphibia
+dr_amphibia <- cbind(id = grid_ma$id, dr_amphibia)
+aa_amphibia <- cbind(id = grid_ma$id, aa_amphibia)
+richness_amphibia <- cbind(id = grid_ma$id, richness_amphibia)
+
+amphibia_data <- left_join(grid_ma, dr_amphibia, by = "id")
+amphibia_data <- left_join(amphibia_data, aa_amphibia, by = "id")
+amphibia_data <- left_join(amphibia_data, FDis_metric_amphibia, by = "id")
+amphibia_data <- left_join(amphibia_data,richness_amphibia, by="id" )
+
+# squamata
+dr_squamata <- cbind(id = grid_ma$id, dr_squamata)
+aa_squamata <- cbind(id = grid_ma$id, aa_squamata)
+richness_squamata <- cbind(id = grid_ma$id, richness_squamata)
+
+squamata_data <- left_join(grid_ma, dr_squamata, by = "id")
+squamata_data <- left_join(squamata_data, aa_squamata, by = "id")
+squamata_data <- left_join(squamata_data, FDis_metric_reptiles, by = "id")
+squamata_data <- left_join(squamata_data,richness_squamata, by="id" )
+
+# birds
+dr_birds <- cbind(id = grid_ma$id, dr_birds)
+aa_birds <- cbind(id = grid_ma$id, aa_birds)
+richness_birds <- cbind(id = grid_ma$id, richness_birds)
+
+birds_data <- left_join(grid_ma, dr_birds, by = "id")
+birds_data <- left_join(birds_data, aa_birds, by = "id")
+birds_data <- left_join(birds_data, FDis_metric_birds, by = "id")
+birds_data <- left_join(birds_data,richness_birds, by="id" )
+
+# mammals
+dr_mammals <- cbind(id = grid_ma$id, dr_mammals)
+aa_mammals <- cbind(id = grid_ma$id, aa_mammals)
+richness_mammals <- cbind(id = grid_ma$id, richness_mammals)
+
+mammals_data <- left_join(grid_ma, dr_mammals, by = "id")
+mammals_data <- left_join(mammals_data, aa_mammals, by = "id")
+mammals_data <- left_join(mammals_data, FDis_metric_mammals, by = "id")
+mammals_data <- left_join(mammals_data,richness_mammals, by="id" )
+```
+
+```{r, spatial correlation for sensitivity analysis}
+# amphibia 
+# grid center only coordinates from each id
+cor.spatial(amphibia_data$full_dr, amphibia_data$harm_dr, grid_center) # 0.874 +- 0.002
+cor.spatial(amphibia_data$full_rich, amphibia_data$harm_rich, grid_center) # 0.891 +- 0.002
+cor.spatial(amphibia_data$full_aa, amphibia_data$harm_aa, grid_center) # 0.375 +- 0.002
+
+# squamata
+cor.spatial(squamata_data$full_dr, squamata_data$harm_dr, grid_center) # 0.796 +- 0.002
+cor.spatial(squamata_data$full_rich, squamata_data$harm_rich, grid_center) # 0.848 +- 0.002
+cor.spatial(squamata_data$full_aa, squamata_data$harm_aa, grid_center) # 0.344 +- 0.002
+
+# birds
+cor.spatial(birds_data$full_dr, birds_data$harm_dr, grid_center) # 0.872 +- 0.002
+cor.spatial(birds_data$full_rich, birds_data$harm_rich, grid_center) # 0.886 +- 0.002
+cor.spatial(birds_data$full_aa, birds_data$harm_aa, grid_center) # 0.001 +- 0.00
+
+# mammals
+cor.spatial(mammals_data$full_dr, mammals_data$harm_dr, grid_center) # 0.773 +- 0.002
+cor.spatial(mammals_data$full_rich, mammals_data$harm_rich, grid_center) # 0.838 +- 0.002
+cor.spatial(mammals_data$full_aa, mammals_data$harm_aa, grid_center) # 0.037 +- 0.002
+```
+
+##### 2.3. Missing traits in phylogeny
+```{r}
+# handling traits
+traits_amphibia <- full_traits_amphibia[-27,] # aplasto wey appear 2x
+
+# match with phy
+rem.col.phy <- c("Brachycephalus_sulfuratus","Crossodactylus_fransciscanus","Crossodactylus_timbuhy","Dendropsophus_bromeliaceus","Eleutherodactylus_bilineatus","Melanophryniscus_milanoi","Melanophryniscus_xanthostomus","Phyllodytes_megatympanum","Proceratophrys_mantiqueira","Proceratophrys_phyllostoma","Proceratophrys_pombali","Pseudopaludicola_atragula","Pseudopaludicola_pocoto","Scinax_caissara","Scinax_melanodactylus","Scinax_rossaferesae","Scinax_skuki","Scinax_strigilatus","Trachycephalus_typhonius","Vitreorana_baliomma")
+
+traits_amphibia <- traits_amphibia[!traits_amphibia$sp %in% rem.col.phy,]
+View(traits_amphibia)
+
+# prune sample with traits and phylogeny
+rownames(traits_amphibia) <- traits_amphibia[,1]
+prune.tree.amp <- t(traits_amphibia)
+tree <- prune.sample(prune, full_phy_amphibia)
+
+# check data
+nrow(traits_amphibia)
+tree
+
+###--- handling trait data for plot
+###---
+head(traits_amphibia[,-1])
+dados <- traits_amphibia[,-1]
+
+# Loop através das colunas e aplicar as substituições correspondentes
+for (coluna in names(dados)) {
+  for (linha in seq_along(dados[, coluna])) {
+    if (!is.na(dados[linha, coluna])) {
+      # Verificar qual coluna está sendo modificada e aplicar a substituição correspondente
+      if (coluna == "Body_size_mm") {
+        dados[linha, coluna] <- "Body size"
+      } else if (coluna == "Diu") {
+        dados[linha, coluna] <- "Circadian activity"
+      } else if (coluna == "Noc") {
+        dados[linha, coluna] <- "Circadian activity"
+      } else if (coluna == "Crepu") {
+        dados[linha, coluna] <- "Circadian activity"  
+      } else if (coluna == "Fos") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "Ter") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "Aqu") {
+        dados[linha, coluna] <- "Habitat"
+      } else if (coluna == "Arb") {
+        dados[linha, coluna] <- "Habitat"
+      }
+    }
+  }
+}
+
+# plot
+phy <- ggtree(tree,layout = "circular")
+
+gheatmap(phy, dados, offset=8, width=0.6, 
+         colnames=FALSE, legend_title="Traits") +
+  scale_fill_manual(breaks=c("Body size","Circadian activity","Habitat"), 
+                    values=c("#ffb313", "firebrick", "darkgreen"), name="Traits")
+```
+
+```{r}
+
+```
 
 
-
-##### 3.0. Composite variable climate
-
-##### 4.0. Save new datasets for Structural Equation Model (SEM)
+##### 3.0. Save new datasets for Structural Equation Model (SEM)
