@@ -825,6 +825,7 @@ mammals_data <- left_join(mammals_data, aa_mammals, by = "id")
 mammals_data <- left_join(mammals_data, FDis_metric_mammals, by = "id")
 mammals_data <- left_join(mammals_data,richness_mammals, by="id" )
 ```
+
 ```{r, spatial correlation for sensitivity analysis}
 # amphibia 
 # grid center only coordinates from each id

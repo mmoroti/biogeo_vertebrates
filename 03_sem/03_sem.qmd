@@ -190,31 +190,31 @@ Models correcting spatial autocorrelation
 ```{r}
 # Amphibia
 # spaceCor     
-gls.amp.1.exp <- gls(fdis_amp ~ rich_amp + climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceExp)
+gls.amp.1.exp <- gls(fdis_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceExp)
 gls.amp.2.exp <- gls(rich_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceExp)
 gls.amp.3.exp <- gls(aa_amp ~ climate_amp + Elevation + Productivity,data = sem_dataset, correlation = spaceExp)
 gls.amp.4.exp <- gls(dr_amp ~ aa_amp + climate_amp + Elevation + Productivity, data = sem_dataset, correlation = spaceExp)
 
 #spaceGaus
-gls.amp.1.gaus <- gls(fdis_amp ~ rich_amp + climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceGaus)
+gls.amp.1.gaus <- gls(fdis_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceGaus)
 gls.amp.2.gaus <- gls(rich_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceGaus)
 gls.amp.3.gaus <- gls(aa_amp ~ climate_amp + Elevation + Productivity,data = sem_dataset, correlation = spaceGaus)
 gls.amp.4.gaus <- gls(dr_amp ~ aa_amp + climate_amp + Elevation + Productivity, data = sem_dataset, correlation = spaceGaus)
 
 #spaceLin
-gls.amp.1.lin <- gls(fdis_amp ~ rich_amp + climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceLin)
+gls.amp.1.lin <- gls(fdis_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceLin)
 gls.amp.2.lin <- gls(rich_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T))
 gls.amp.3.lin <- gls(aa_amp ~ climate_amp + Elevation + Productivity,data = sem_dataset, correlation = spaceLin)
 gls.amp.4.lin <- gls(dr_amp ~ aa_amp + climate_amp + Elevation + Productivity, data = sem_dataset, correlation = spaceLin)
  
 #spaceRatio
-gls.amp.1.ratio <- gls(fdis_amp ~ rich_amp + climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceRatio)
+gls.amp.1.ratio <- gls(fdis_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceRatio)
 gls.amp.2.ratio <- gls(rich_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceRatio)
 gls.amp.3.ratio <- gls(aa_amp ~ climate_amp + Elevation + Productivity,data = sem_dataset, correlation = spaceRatio)
 gls.amp.4.ratio <- gls(dr_amp ~ aa_amp + climate_amp + Elevation + Productivity, data = sem_dataset, correlation = spaceRatio)
 
 #spaceSpher
-gls.amp.1.spher <- gls(fdis_amp ~ rich_amp + climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceSpher)
+gls.amp.1.spher <- gls(fdis_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceSpher)
 gls.amp.2.spher <- gls(rich_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceSpher)
 gls.amp.3.spher <- gls(aa_amp ~ climate_amp + Elevation + Productivity,data = sem_dataset, correlation = spaceSpher)
 gls.amp.4.spher <- gls(dr_amp ~ aa_amp + climate_amp + Elevation + Productivity, data = sem_dataset, correlation = spaceSpher)
@@ -223,31 +223,31 @@ gls.amp.4.spher <- gls(dr_amp ~ aa_amp + climate_amp + Elevation + Productivity,
 ###### 2.2.2. Squamata
 ```{r}
 # spaceExp
-gls.rep.1.exp <- gls(fdis_squa ~ rich_squa + climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation= spaceExp)
+gls.rep.1.exp <- gls(fdis_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation= corExp(c(500, 0.1), form =~ V2+V1, nugget=T))
 gls.rep.2.exp <- gls(rich_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation = spaceExp)
 gls.rep.3.exp <- gls(aa_squa ~ climate_squa + Elevation + Productivity,data = sem_dataset, correlation = spaceExp)
 gls.rep.4.exp <- gls(dr_squa ~ aa_squa + climate_squa + Elevation + Productivity, data = sem_dataset, correlation= corExp(c(500, 0.1), form =~ V2+V1, nugget=T))
 
 # spaceGaus
-gls.rep.1.gaus <- gls(fdis_squa ~ rich_squa + climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation = spaceGaus)
+gls.rep.1.gaus <- gls(fdis_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation = spaceGaus)
 gls.rep.2.gaus <- gls(rich_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation = spaceGaus)
 gls.rep.3.gaus <- gls(aa_squa ~ climate_squa + Elevation + Productivity,data = sem_dataset, correlation = spaceGaus)
 gls.rep.4.gaus <- gls(dr_squa ~ aa_squa + climate_squa + Elevation + Productivity, data = sem_dataset, correlation = spaceGaus)
 
 # spaceLin
-gls.rep.1.lin <- gls(fdis_squa ~ rich_squa + climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation=spaceLin)
+gls.rep.1.lin <- gls(fdis_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation=spaceLin)
 gls.rep.2.lin <- gls(rich_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation = spaceLin)
 gls.rep.3.lin <- gls(aa_squa ~ climate_squa + Elevation + Productivity,data = sem_dataset, correlation = spaceLin)
 gls.rep.4.lin <- gls(dr_squa ~ aa_squa + climate_squa + Elevation + Productivity, data = sem_dataset, correlation = spaceLin)
 
 # spaceRatio
-gls.rep.1.ratio <- gls(fdis_squa ~ rich_squa + climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation=spaceRatio)
+gls.rep.1.ratio <- gls(fdis_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation=spaceRatio)
 gls.rep.2.ratio <- gls(rich_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation = spaceRatio)
 gls.rep.3.ratio <- gls(aa_squa ~ climate_squa + Elevation + Productivity,data = sem_dataset, correlation = spaceRatio)
 gls.rep.4.ratio <- gls(dr_squa ~ aa_squa + climate_squa + Elevation + Productivity, data = sem_dataset, correlation = spaceRatio)
 
 # spaceSpher
-gls.rep.1.spher <- gls(fdis_squa ~ rich_squa + climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation=spaceSpher)
+gls.rep.1.spher <- gls(fdis_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation=spaceSpher)
 gls.rep.2.spher <- gls(rich_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation = spaceSpher)
 gls.rep.3.spher <- gls(aa_squa ~ climate_squa + Elevation + Productivity,data = sem_dataset, correlation = spaceSpher)
 gls.rep.4.spher <- gls(dr_squa ~ aa_squa + climate_squa + Elevation + Productivity, data = sem_dataset, correlation = spaceSpher)
@@ -256,31 +256,31 @@ gls.rep.4.spher <- gls(dr_squa ~ aa_squa + climate_squa + Elevation + Productivi
 ###### 2.2.3. Birds
 ```{r}
 # spaceExp
-gls.bird.1.exp <- gls(fdis_birds ~ rich_birds + climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset,  correlation = corExp(c(200, 0.1), form =~ V2+V1, nugget=T))
+gls.bird.1.exp <- gls(fdis_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset,  correlation = corExp(c(200, 0.1), form =~ V2+V1, nugget=T))
 gls.bird.2.exp <- gls(rich_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds, data=sem_dataset, correlation = spaceExp)
 gls.bird.3.exp <- gls(aa_birds ~ climate_birds + Elevation + Productivity,data = sem_dataset, correlation = spaceExp)
 gls.bird.4.exp <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Productivity, data = sem_dataset, correlation = corExp(c(200, 0.1), form =~ V2+V1, nugget=T))
 
 # spaceGaus
-gls.bird.1.gaus <- gls(fdis_birds ~ rich_birds + climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = spaceGaus)
+gls.bird.1.gaus <- gls(fdis_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = spaceGaus)
 gls.bird.2.gaus <- gls(rich_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds, data=sem_dataset, correlation = spaceGaus)
 gls.bird.3.gaus <- gls(aa_birds ~ climate_birds + Elevation + Productivity,data = sem_dataset, correlation = spaceGaus)
 gls.bird.4.gaus <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Productivity, data = sem_dataset, correlation = spaceGaus)
 
 # spaceLin
-gls.bird.1.lin <- gls(fdis_birds ~ rich_birds + climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = spaceLin)
+gls.bird.1.lin <- gls(fdis_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = spaceLin)
 gls.bird.2.lin <- gls(rich_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds, data=sem_dataset, correlation = spaceLin)
 gls.bird.3.lin <- gls(aa_birds ~ climate_birds + Elevation + Productivity,data = sem_dataset, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T)) ###
 gls.bird.4.lin <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Productivity, data = sem_dataset, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T))
 
 # spaceRatio
-gls.bird.1.ratio <- gls(fdis_birds ~ rich_birds + climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = spaceRatio)
+gls.bird.1.ratio <- gls(fdis_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = spaceRatio)
 gls.bird.2.ratio <- gls(rich_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds, data=sem_dataset, correlation = spaceRatio)
 gls.bird.3.ratio <- gls(aa_birds ~ climate_birds + Elevation + Productivity,data = sem_dataset, correlation = spaceRatio)
 gls.bird.4.ratio <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Productivity, data = sem_dataset, correlation = spaceRatio)
 
 # spaceSpher
-gls.bird.1.spher <- gls(fdis_birds ~ rich_birds + climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = spaceSpher)
+gls.bird.1.spher <- gls(fdis_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = spaceSpher)
 gls.bird.2.spher <- gls(rich_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds, data=sem_dataset, correlation = spaceSpher)
 gls.bird.3.spher <- gls(aa_birds ~ climate_birds + Elevation + Productivity,data = sem_dataset, correlation = spaceSpher)
 gls.bird.4.spher <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Productivity, data = sem_dataset, correlation = spaceSpher)
@@ -289,38 +289,35 @@ gls.bird.4.spher <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Produc
 ###### 2.2.4. Mammals
 ```{r}
 # spaceExp
-gls.mam.1.exp <- gls(fdis_mammals ~ rich_mammals + climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation = spaceExp)
+gls.mam.1.exp <- gls(fdis_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation = spaceExp)
 gls.mam.2.exp <- gls(rich_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals, data=sem_dataset, correlation = spaceExp)
 gls.mam.3.exp <- gls(aa_mammals ~ climate_mammals + Elevation + Productivity,data = sem_dataset, correlation = spaceExp)
 gls.mam.4.exp <- gls(dr_mammals ~ aa_mammals + climate_mammals + Elevation + Productivity, data = sem_dataset, correlation = spaceExp)
 
 # spaceGaus
-gls.mam.1.gaus <- gls(fdis_mammals ~ rich_mammals + climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation=spaceGaus)
+gls.mam.1.gaus <- gls(fdis_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation=spaceGaus)
 gls.mam.2.gaus <- gls(rich_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals, data=sem_dataset, correlation = spaceGaus)
 gls.mam.3.gaus <- gls(aa_mammals ~ climate_mammals + Elevation + Productivity,data = sem_dataset, correlation = spaceGaus)
 gls.mam.4.gaus <- gls(dr_mammals ~ aa_mammals + climate_mammals + Elevation + Productivity, data = sem_dataset, correlation = spaceGaus)
 
 # spaceLin
-gls.mam.1.lin <- gls(fdis_mammals ~ rich_mammals + climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation=spaceLin)
+gls.mam.1.lin <- gls(fdis_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation=spaceLin)
 gls.mam.2.lin <- gls(rich_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals, data=sem_dataset, correlation = spaceLin)
 gls.mam.3.lin <- gls(aa_mammals ~ climate_mammals + Elevation + Productivity,data = sem_dataset, correlation = spaceLin)
 gls.mam.4.lin <- gls(dr_mammals ~ aa_mammals + climate_mammals + Elevation + Productivity, data = sem_dataset, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T))
 
 # spaceRatio
-gls.mam.1.ratio <- gls(fdis_mammals ~ rich_mammals + climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation=spaceRatio)
+gls.mam.1.ratio <- gls(fdis_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation=spaceRatio)
 gls.mam.2.ratio <- gls(rich_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals, data=sem_dataset, correlation = spaceRatio)
 gls.mam.3.ratio <- gls(aa_mammals ~ climate_mammals + Elevation + Productivity,data = sem_dataset, correlation = spaceRatio)
 gls.mam.4.ratio <- gls(dr_mammals ~ aa_mammals + climate_mammals + Elevation + Productivity, data = sem_dataset, correlation = spaceRatio)
 
 # spaceSpher
-gls.mam.1.spher <- gls(fdis_mammals ~ rich_mammals + climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation=spaceSpher)
+gls.mam.1.spher <- gls(fdis_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation=spaceSpher)
 gls.mam.2.spher <- gls(rich_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals, data=sem_dataset, correlation = spaceSpher)
 gls.mam.3.spher <- gls(aa_mammals ~ climate_mammals + Elevation + Productivity,data = sem_dataset, correlation = spaceSpher)
 gls.mam.4.spher <- gls(dr_mammals ~ aa_mammals + climate_mammals + Elevation + Productivity, data = sem_dataset, correlation = spaceSpher)
 ```
-
-
-
 
 ##### 2.3. Model selection
 Selecting the models with the best fit and diagnosis of the GLS (Predicted vs Residuals)
