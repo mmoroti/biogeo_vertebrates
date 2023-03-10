@@ -83,7 +83,7 @@ harm_phy_mammals <- read.tree("harmonized_data/mammals.tre") # 166
 ```{r, assemblage age}
 # Assemblage age
 # full list
-full_aa_amphibia <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_amphibia.txt')#487
+full_aa_amphibia <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_amphibia_full.txt')#487
 full_aa_squamata <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_squamata.txt')#382
 full_aa_birds <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_birds.txt')#695
 full_aa_mammals <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_mammals.txt')#196
@@ -93,6 +93,15 @@ harm_aa_amphibia <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/ag
 harm_aa_squamata <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_squamata_harm.txt')#262
 harm_aa_birds <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_birds_harm.txt') #638
 harm_aa_mammals <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/age_mammals_harm.txt') #166
+```
+
+```{r, Diversification rate equal split}
+# Diversification rate by Herodotools - mean each cell
+# full list
+hero_dr_amphibia <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/metrics_amphibia_full.txt')#487
+hero_dr_squamata <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/metrics_squamata_full.txt')#382
+hero_dr_birds <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/metrics_birds_full.txt')#695
+hero_dr_mammals <- read.table('/repos/biogeo_vertebrates-main/assemblage_age/metrics_mammals_full.txt')#196
 ```
 
 ```{r,message=FALSE, abiotic data}
@@ -224,7 +233,7 @@ amphibia_harm_matrix <- as.matrix(harm_list_amphibia)
 dim(amphibia_harm_matrix)
 
 # Multiplicando matrizes para obter a média DR para cada célula do grid
-harm_amphibia_dr <- amphibia_harm_matrix%*% harm_dr
+harm_amphibia_dr <- amphibia_harm_matrix %*% harm_dr
 ```
 
 ###### 1.2.2. Squamata
@@ -681,7 +690,7 @@ plot_grid(title, rich,ncol = 1,rel_heights = c(0.1, 1))
   # rel_heights values control vertical title margins
 ```
 
-###### 2.1.1. Diversification rate
+###### 2.1.2. Diversification rate
 
 ```{r}
 dr_amphibia <- as.data.frame(cbind(full_dr = full_amphibia_dr, harm_dr = harm_amphibia_dr))
@@ -1079,13 +1088,13 @@ gheatmap(phy, dados, offset=8, width=0.6,
 Here we will consider using richness and diversification rate data that have the same number of species that were used to calculate the traits (here called harmonized data). Our sensitivity analysis showed a high correlation between these data, so there is no influence on subsequent analyses. On the other hand, the assemblage age metric uses complete datasets (here called full), since we found discrepant and uncorrelated values in our sensitivity analysis, which could change our results.
 
 ```{r}
-amphibia_data <- as.data.frame(cbind(id=richness_amphibia$id,rich_amp=richness_amphibia$harm_rich,dr_amp= dr_amphibia$harm_dr, aa_amp = aa_amphibia$full_aa, fdis_amp = FDis_metric_amphibia$FDis))
+amphibia_data <- as.data.frame(cbind(id=grid_ma$id,rich_amp=richness_amphibia$harm_rich,dr_amp= hero_dr_amphibia$diversification, aa_amp = full_aa_amphibia$mean_age_arrival, fdis_amp = FDis_metric_amphibia$FDis))
 
-squamata_data <- as.data.frame (cbind(id=richness_squamata$id,rich_squa=richness_squamata$harm_rich,dr_squa= dr_squamata$harm_dr, aa_squa = aa_squamata$full_aa, fdis_squa = FDis_metric_reptiles$FDis))
+squamata_data <- as.data.frame (cbind(id=grid_ma$id,rich_squa=richness_squamata$harm_rich,dr_squa= hero_dr_squamata$diversification, aa_squa = full_aa_squamata$mean_age_arrival, fdis_squa = FDis_metric_reptiles$FDis))
 
-birds_data <- as.data.frame(cbind(id=richness_birds$id,rich_birds=richness_birds$harm_rich,dr_birds= dr_birds$harm_dr, aa_birds = aa_birds$full_aa, fdis_birds = FDis_metric_birds$FDis))
+birds_data <- as.data.frame(cbind(id=grid_ma$id,rich_birds=richness_birds$harm_rich,dr_birds= hero_dr_birds$diversification, aa_birds = full_aa_birds$mean_age_arrival, fdis_birds = FDis_metric_birds$FDis))
 
-mammals_data <- as.data.frame(cbind(id=richness_mammals$id,rich_mammals=richness_mammals$harm_rich,dr_mammals= dr_mammals$harm_dr, aa_mammals = aa_mammals$full_aa, fdis_mammals = FDis_metric_mammals$FDis))
+mammals_data <- as.data.frame(cbind(id=grid_ma$id,rich_mammals=richness_mammals$harm_rich,dr_mammals= hero_dr_mammals$diversification, aa_mammals = full_aa_mammals$mean_age_arrival, fdis_mammals = FDis_metric_mammals$FDis))
 
 # join dataset
 full_dataset <- left_join(amphibia_data, squamata_data, by="id")
@@ -1095,4 +1104,7 @@ full_dataset <- left_join(full_dataset, mammals_data, by="id")
 ### save dataset  
 setwd("E:/repos/biogeo_vertebrates-main")
 write.table(full_dataset, "03_sem/dataset_metrics.txt")
+
+View(full_dataset)
+
 ```

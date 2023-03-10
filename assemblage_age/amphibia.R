@@ -1,4 +1,9 @@
-# Thu Jan 26 20:49:12 2023 ------------------------------
+### id Matheus Moroti
+### LAST UPDATE
+# Wed Mar 8 18:22:52 2023 ------------------------------
+
+# amphibia dataset for evolutionary metrics 
+# metric for DR each cell
 # new metric 'assemblage age' from herodotools package
 # amphibia 
 
@@ -9,23 +14,33 @@ library(Herodotools)
 library(tidyverse)
 library(phytools)
 library(picante)
+library(patchwork) # using patchwork to put the maps together
 
 # limits of map
 coastline <- rnaturalearth::ne_coastline(returnclass = "sf")
 map_limits <- list(
-  x = c(-70, -30),
-  y = c(-40, 00)
+  x = c(-58, -35),
+  y = c(-30, -5)
 )
 
 # load data
+# harmonized
 getwd()
 amphibia_full_list <- read.table('02_metrics/harmonized_data/list_amphibia.txt', header=T)
 tree_amphibia <- read.tree("02_metrics/harmonized_data/amphibia.tre")
 coords_id <- read.table("Shapefiles/id_coordinates.txt")
 nrow(coords_id) # 432 sites
 
+# full dataset
+getwd()
+amphibia_full_list <- read.table('02_metrics/full_data/list_amphibia.txt', header=T)
+tree_amphibia <- read.tree("02_metrics/full_data/amphibia.tre")
+coords_id <- read.table("Shapefiles/id_coordinates.txt")
+nrow(coords_id) # 432 sites
+
 # adjustment in amphibia names
 amphibia_list <- amphibia_full_list[ , order(names(amphibia_full_list))] #Ordem alfabética
+
 #Arrumando nomes
 names(amphibia_list) <- gsub("Scinax_x.signatus", "Scinax_x-signatus", fixed=T, names(amphibia_list))
 names(amphibia_list) <- gsub("Scinax_v.signatus", "Scinax_v-signatus", fixed=T, names(amphibia_list))
@@ -52,17 +67,17 @@ amphibia_phy <- prune.sample(amphibia_list, tree_amphibia) # 487 spp.
 amphibia_phy # 421
 ncol(amphibia_list) # 421
 
-#match.phylo.comm(tree_amphibia, amphibia_list)
-#ncol(amphibia_list) # precisamos remover 32 espécies que estão a mais na composição
-#rem.col.phy <- c("Bokermannohyla_izecksohni","Brachycephalus_sulfuratus","Chiasmocleis_cordeiroi","Chiasmocleis_crucis","Crossodactylus_bokermanni","Crossodactylus_fransciscanus","Crossodactylus_timbuhy","Dendropsophus_baileyi","Dendropsophus_bromeliaceus", "Eleutherodactylus_bilineatus","Holoaden_pholeter","ID","Melanophryniscus_milanoi", "Melanophryniscus_xanthostomus","Scinax_strigilatus","Phyllodytes_megatympanum","Proceratophrys_fryi","Proceratophrys_mantiqueira","Proceratophrys_moratoi", "Proceratophrys_phyllostoma","Proceratophrys_pombali","Pseudopaludicola_atragula","Pseudopaludicola_pocoto","Scinax_caissara","Scinax_canastrensis","Scinax_centralis","Scinax_kautskyi","Scinax_melanodactylus","Scinax_rossaferesae","Scinax_skuki","Trachycephalus_typhonius","Vitreorana_baliomma")
+match.phylo.comm(tree_amphibia, amphibia_list)
+ncol(amphibia_list) # precisamos remover 32 espécies que estão a mais na composição
+rem.col.phy <- c("Bokermannohyla_izecksohni","Brachycephalus_sulfuratus","Chiasmocleis_cordeiroi","Chiasmocleis_crucis","Crossodactylus_bokermanni","Crossodactylus_fransciscanus","Crossodactylus_timbuhy","Dendropsophus_baileyi","Dendropsophus_bromeliaceus", "Eleutherodactylus_bilineatus","Holoaden_pholeter","ID","Melanophryniscus_milanoi", "Melanophryniscus_xanthostomus","Scinax_strigilatus","Phyllodytes_megatympanum","Proceratophrys_fryi","Proceratophrys_mantiqueira","Proceratophrys_moratoi", "Proceratophrys_phyllostoma","Proceratophrys_pombali","Pseudopaludicola_atragula","Pseudopaludicola_pocoto","Scinax_caissara","Scinax_canastrensis","Scinax_centralis","Scinax_kautskyi","Scinax_melanodactylus","Scinax_rossaferesae","Scinax_skuki","Trachycephalus_typhonius","Vitreorana_baliomma")
 
 #Retirando na lista
-#amphibia_list_phy <- amphibia_list[,!(names(amphibia_list)%in% rem.col.phy)]
-#ncol(amphibia_list_phy ) #487 spp, 432 sites
-#amphibia_phy # 487 spp.
+amphibia_list_phy <- amphibia_list[,!(names(amphibia_list)%in% rem.col.phy)]
+ncol(amphibia_list_phy ) #487 spp, 432 sites
+amphibia_phy # 487 spp.
 
 # amphibia richness
-richness_amphibia <- rowSums(amphibia_list)
+richness_amphibia <- rowSums(amphibia_list_phy)
 
 # just coordinates
 coords <- coords_id[,-3]
@@ -95,7 +110,7 @@ amphibia_phy <- force.ultrametric(amphibia_phy)
 
 regions <- 
   Herodotools::calc_evoregions(
-    comm = amphibia_list,
+    comm = amphibia_list_phy,
     phy = amphibia_phy
   )
 
@@ -123,18 +138,15 @@ col_five_hues <- c(
            "#3d291a",
            "#a9344f",
            "#578a5b",
-           "#83a6c4",
-           "#fcc573",
-           "#fc73ee"
-)
+           "#83a6c4")
 
-map_evoregion <- 
+map_evoregion_amphibia <- 
   evoregion_df %>% 
   ggplot2::ggplot() + 
   ggplot2::geom_raster(ggplot2::aes(x = V1, y = V2, fill = site_region)) + 
   ggplot2::scale_fill_manual(
     name = "", 
-    labels = LETTERS[1:6],
+    labels = LETTERS[1:4],
     values = rev(col_five_hues)
   ) +
   ggplot2::geom_sf(data = coastline) +
@@ -155,7 +167,9 @@ map_evoregion <-
     plot.subtitle = element_text(hjust = 0.5),
     legend.text = element_text(color = "black", size = 8)
   )
-map_evoregion
+
+
+map_evoregion_amphibia
 
 # pertencimento a cada evoregion
 # Selecting only axis with more than 5% of explained variance from evoregion output
@@ -179,7 +193,7 @@ map_joint_evoregion_afilliation <-
                        alpha = sites[, "afilliation"]) + 
   ggplot2::scale_fill_manual(
     name = "", 
-    labels = LETTERS[1:6],
+    labels = LETTERS[1:4],
     values = rev(col_five_hues)
   ) +
   ggplot2::geom_sf(data = coastline, size = 0.4) +
@@ -192,8 +206,8 @@ map_joint_evoregion_afilliation <-
   ggplot2::ggtitle("") + 
   guides(guide_legend(direction = "vertical")) +
   ggplot2::theme_bw() +
-  ggplot2::xlab("Longitude") +
-  ggplot2::ylab("Latitude") +
+  ggplot2::xlab("Long") +
+  ggplot2::ylab("Lat") +
   ggplot2::theme(
     legend.position = "bottom",
     axis.title = element_text(size = 10)
@@ -201,64 +215,95 @@ map_joint_evoregion_afilliation <-
 
 map_joint_evoregion_afilliation
 
+
+sites %>% 
+  ggplot2::ggplot() + 
+  ggplot2::geom_raster(ggplot2::aes(x = V1, y = V2, fill = diversification)) + 
+  rcartocolor::scale_fill_carto_c(type = "quantitative", 
+                                  palette = "SunsetDark",
+                                  direction = 1, 
+                                  limits = c(0.02, 0.035))+  ## max percent overall
+  #breaks = seq(0, 0.030, by = 0.01))+
+  #labels = glue::glue("{seq(0.010, 0.030, by = 0.010)}")) +
+  ggplot2::geom_sf(data = coastline, size = 0.4) +
+  ggplot2::coord_sf(xlim = map_limits$x, ylim = map_limits$y) +
+  ggplot2::ggtitle("D") + 
+  ggplot2::theme_bw() +
+  ggplot2::labs(fill = "DR") +
+  ggplot2::guides(fill = guide_colorbar(barheight = unit(3, units = "mm"),  
+                                        direction = "horizontal",
+                                        ticks.colour = "grey20",
+                                        title.position = "top",
+                                        label.position = "bottom",
+                                        title.hjust = 0.5)) +
+  ggplot2::theme(
+    legend.position = "bottom",
+    axis.title = element_blank(),
+    axis.text = element_text(size = 5)
+  )
+
+
 # temos que definir a ocorrência de cada espécie nas evoregiões. Para fazer isso, podemos usar a função get_region_occe obter um quadro de dados de espécies nas linhas e evoregiões nas colunas.
-a_region <- get_region_occ_v2(comm = amphibia_list, site.region = site_region)
-nrow(a_region) # 409
-ncol(amphibia_list) # 421
-# por algum motivo a função esta excluindo 9 espécies, essas 9 espécies tem ampla distribuição, agora o porque disso estar acontecendo não faço a mínima ideia (?)
+a_region <- get_region_occ_v2(comm =  amphibia_list_phy, site.region = site_region)
+nrow(a_region) # 487
+ncol(amphibia_list_phy) # 487
+amphibia_phy
+
+# Wed Mar  8 18:40:13 2023 ------------------------------
+# todas as espécies foram carregadas
 
 # O objeto criado na última etapa pode ser usado em uma função auxiliar no Herodotools para produzir facilmente o arquivo Phyllip necessário para executar a análise da reconstrução da área ancestral usando o BioGeoBEARS.
 # save phyllip file
 getwd()
-Herodotools::get_tipranges_to_BioGeoBEARS(a_region,filename = "assemblage_age/geo_area_amphibia_harm.data",areanames = NULL)
+Herodotools::get_tipranges_to_BioGeoBEARS(a_region,filename = "assemblage_age/geo_area_amphibia_full.data")
 
 # tree file for BioGeoBears
 # We need need to remove some species and preparing the tree file 
-amphibia_phy_bio <- force.ultrametric(tree_amphibia)
-amphibia_phy_bio <- ape::multi2di(tree_amphibia)
+amphibia_phy_bio <- force.ultrametric(amphibia_phy)
+amphibia_phy_bio <- ape::multi2di(amphibia_phy)
 
-remove <- c("Dendropsophus_minutus", "Hypsiboas_crepitans", "Hypsiboas_faber", "Hypsiboas_geographicus", "Leptodactylus_fuscus", "Leptodactylus_latrans", "Leptodactylus_mystacinus", "Physalaemus_cuvieri","Odontophrynus_americanus", "Rhinella_icterica", "Scinax_alter", "Scinax_squalirostris")
-
-amphibia_phy_bio <- drop.tip(amphibia_phy_bio, remove)
-ape::write.tree(amphibia_phy_bio , 'assemblage_age/amphibia_biogeo_harm.new')
+#remove <- c("Dendropsophus_minutus", "Hypsiboas_crepitans", "Hypsiboas_faber", "Hypsiboas_geographicus", "Leptodactylus_fuscus", "Leptodactylus_latrans", "Leptodactylus_mystacinus", "Physalaemus_cuvieri","Odontophrynus_americanus", "Rhinella_icterica", "Scinax_alter", "Scinax_squalirostris")
+#amphibia_phy_bio <- drop.tip(amphibia_phy_bio, remove)
+ape::write.tree(amphibia_phy_bio , 'assemblage_age/amphibia_biogeo_full.new')
 
 # Assemblage age
 # converting numbers to character
-biogeo_area <- data.frame(biogeo = chartr("123456", "ABCDEF", evoregion_df$site_region)) 
+biogeo_area <- data.frame(biogeo = chartr("1234", "ABCD", evoregion_df$site_region)) 
 
 # getting the ancestral range area for each node 
 node_area <- 
   Herodotools::get_node_range_BioGeoBEARS(
     resDECj,
-    phyllip.file = "assemblage_age/geo_area_amphibia_harm.data",
+    phyllip.file = "assemblage_age/geo_area_amphibia_full.data",
     amphibia_phy_bio,
     max.range.size = 3 
   )
 
 # remove species in list of species
-ncol(amphibia_list)
-amphibia_list_biogeo <- amphibia_list[,!(names(amphibia_list)%in% remove)]
-ncol(amphibia_list_biogeo)
+#ncol(amphibia_list)
+#amphibia_list_biogeo <- amphibia_list[,!(names(amphibia_list)%in% remove)]
+#ncol(amphibia_list_biogeo)
 
 # calculating age arrival 
-age_comm <- Herodotools::calc_age_arrival(W = amphibia_list_biogeo, 
+age_comm <- Herodotools::calc_age_arrival(W = amphibia_list_phy, 
                                           tree = amphibia_phy_bio, 
                                           ancestral.area = node_area, 
                                           biogeo = biogeo_area) 
+
 sites <- dplyr::bind_cols(coords, site_region =  site_region, age = age_comm$mean_age_per_assemblage)
 max(sites$mean_age_arrival)
 min(sites$mean_age_arrival)
 #plot map
 #map_age <- 
-  sites %>% 
+map_age_amphibia <-  sites %>% 
   ggplot() + 
   ggplot2::geom_raster(ggplot2::aes(x = V1, y = V2, fill = mean_age_arrival)) + 
   rcartocolor::scale_fill_carto_c(type = "quantitative", 
                                   palette = "SunsetDark",
                                   direction = 1, 
-                                  limits = c(0.0, 35),  ## max percent overall
-                                  breaks = seq(0.0, 35, by = 10),
-                                  labels = glue::glue("{seq(0.0, 35, by = 10)}")) +
+                                  limits = c(0, 105),  ## max percent overall
+                                  breaks = seq(0, 105, by = 35),
+                                  labels = glue::glue("{seq(0, 105, by = 35)}")) +
   ggplot2::geom_sf(data = coastline, size = 0.4) +
   ggplot2::coord_sf(xlim = map_limits$x, ylim = map_limits$y) +
   ggplot2::ggtitle("") + 
@@ -278,9 +323,65 @@ min(sites$mean_age_arrival)
     plot.subtitle = element_text(hjust = 0.5)
   )
 
-  map_age
-
 # Save dataset
 age_amphibia <- cbind(coords_id,sites[,3:4])
-write.table(age_amphibia,"assemblage_age/age_amphibia_harm.txt")
-read.table('assemblage_age/age_amphibia_harm.txt')
+write.table(age_amphibia,"assemblage_age/age_amphibia_full.txt")
+read.table('assemblage_age/age_amphibia_full.txt')
+
+# Wed Mar  8 18:58:01 2023 ------------------------------
+# diversification rate metrics
+
+# in situ
+amphibia_diversification <- 
+  Herodotools::calc_insitu_diversification(W = amphibia_list_phy,
+                                           tree = amphibia_phy_bio, 
+                                           ancestral.area = node_area, 
+                                           biogeo = biogeo_area, 
+                                           diversification = "jetz",
+                                           type = "equal.splits")
+
+
+# join dataset for plot
+sites_new <- dplyr::bind_cols(coords,
+                          site_region =  site_region,
+                          age = age_comm$mean_age_per_assemblage,
+                          diversification_model_based = amphibia_diversification$model_based_Jetz_harmonic_mean_site,
+                          diversification = amphibia_diversification$Jetz_harmonic_mean_site)
+
+ 
+
+Save dataset
+dr_age_amphibia <- cbind(coords_id,sites_new[,4:6])
+write.table(dr_age_amphibia,"assemblage_age/metrics_amphibia_full.txt")
+
+# plot of harmonic-mean of diversification rate 
+map_diversification <- sites %>% 
+  ggplot2::ggplot() + 
+  ggplot2::geom_raster(ggplot2::aes(x = V1, y = V2, fill = diversification)) + 
+  rcartocolor::scale_fill_carto_c(type = "quantitative", 
+                                  palette = "SunsetDark",
+                                  direction = 1, 
+                                  limits = c(0.02, 0.035))+  ## max percent overall
+                                  #breaks = seq(0, 0.030, by = 0.01))+
+                                  #labels = glue::glue("{seq(0.010, 0.030, by = 0.010)}")) +
+  ggplot2::geom_sf(data = coastline, size = 0.4) +
+  ggplot2::coord_sf(xlim = map_limits$x, ylim = map_limits$y) +
+  ggplot2::ggtitle("D") + 
+  ggplot2::theme_bw() +
+  ggplot2::labs(fill = "DR") +
+  ggplot2::guides(fill = guide_colorbar(barheight = unit(3, units = "mm"),  
+                                        direction = "horizontal",
+                                        ticks.colour = "grey20",
+                                        title.position = "top",
+                                        label.position = "bottom",
+                                        title.hjust = 0.5)) +
+  ggplot2::theme(
+    legend.position = "bottom",
+    axis.title = element_blank(),
+    axis.text = element_text(size = 5)
+  )
+
+
+
+map_amphibia_complete <- anura_richness + map_joint_evoregion_afilliation +
+                          map_age_amphibia + map_diversification

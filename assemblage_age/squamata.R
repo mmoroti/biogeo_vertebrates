@@ -13,13 +13,13 @@ library(picante)
 # limits of map
 coastline <- rnaturalearth::ne_coastline(returnclass = "sf")
 map_limits <- list(
-  x = c(-70, -30),
-  y = c(-40, 00)
+  x = c(-58, -35),
+  y = c(-30, -5)
 )
 
 # load data
-squamata_full_list <- read.table('02_metrics/harmonized_data/list_squamata.txt', header=T)
-tree_squamata <- read.tree("02_metrics/harmonized_data/squamata.tre")
+squamata_full_list <- read.table('02_metrics/full_data/list_squamata.txt', header=T)
+tree_squamata <- read.tree("02_metrics/full_data/squamata.tre")
 
 coords_id <- read.table("Shapefiles/id_coordinates.txt")
 nrow(coords_id) # 432 sites
@@ -34,12 +34,12 @@ squamata_phy <- prune.sample(squamata_list, tree_squamata) # 487 spp.
 
 match.phylo.comm(tree_squamata, squamata_list)
 ncol(squamata_list) # precisamos remover 21 espécies que estão a mais na composição
-#rem.col.phy <- c("Acanthochelys_radiolata","Acanthochelys_spixii","Caiman_crocodilus","Caiman_latirostris","Caiman_yacare","Chelonoidis_carbonaria","Chelonoidis_denticulata","Hydromedusa_maximiliani","Hydromedusa_tectifera","ID","Kinosternon_scorpioides","Mesoclemmys_hogei","Mesoclemmys_tuberculata","Mesoclemmys_vanderhaegei","Paleosuchus_palpebrosus","Phrynops_geoffroanus","Phrynops_hilarii","Phrynops_tuberosus","Phrynops_williamsi","Trachemys_dorbigni","Tropidurus_imbituba") #apenas um lagarto, restante é testudine e crocodilia
+rem.col.phy <- c("Acanthochelys_radiolata","Acanthochelys_spixii","Caiman_crocodilus","Caiman_latirostris","Caiman_yacare","Chelonoidis_carbonaria","Chelonoidis_denticulata","Hydromedusa_maximiliani","Hydromedusa_tectifera","ID","Kinosternon_scorpioides","Mesoclemmys_hogei","Mesoclemmys_tuberculata","Mesoclemmys_vanderhaegei","Paleosuchus_palpebrosus","Phrynops_geoffroanus","Phrynops_hilarii","Phrynops_tuberosus","Phrynops_williamsi","Trachemys_dorbigni","Tropidurus_imbituba") #apenas um lagarto, restante é testudine e crocodilia
 
 #Retirando na lista
-squamata_list_phy <- squamata_list[,!(names(squamata_list)%in% "ID")]
-ncol(squamata_list_phy ) #262 spp
-squamata_phy # 262 spp.
+squamata_list_phy <- squamata_list[,!(names(squamata_list)%in% rem.col.phy)]
+ncol(squamata_list_phy ) #382 spp
+squamata_phy # 382 spp.
 
 # squamata richness
 richness_squamata <- rowSums(squamata_list_phy)
@@ -189,7 +189,7 @@ ncol(squamata_list_phy) #382
 # O objeto criado na última etapa pode ser usado em uma função auxiliar no Herodotools para produzir facilmente o arquivo Phyllip necessário para executar a análise da reconstrução da área ancestral usando o BioGeoBEARS.
 # save phyllip file
 getwd()
-Herodotools::get_tipranges_to_BioGeoBEARS(squamata_region,filename = "assemblage_age/geo_area_squamata_harm.data",areanames = NULL) 
+Herodotools::get_tipranges_to_BioGeoBEARS(squamata_region,filename = "assemblage_age/geo_area_squamata_full.data",areanames = NULL) 
 
 ###------------------------------------------------------------------------
 # depois da reconstrução de range ancestral 
@@ -197,7 +197,7 @@ Herodotools::get_tipranges_to_BioGeoBEARS(squamata_region,filename = "assemblage
 # tree file for 
 squamata_phy_bio <- force.ultrametric(squamata_phy)
 squamata_phy_bio <- ape::multi2di(squamata_phy_bio)
-ape::write.tree(squamata_phy_bio , 'assemblage_age/squamata_biogeo_harm.new')
+ape::write.tree(squamata_phy_bio , 'assemblage_age/squamata_biogeo_full.new')
 
 # idade da comunidade
 # converting numbers to character
@@ -207,7 +207,7 @@ biogeo_area <- data.frame(biogeo = chartr("1234", "ABCD", evoregion_squamata$sit
 node_area <- 
   Herodotools::get_node_range_BioGeoBEARS(
     resDECj,
-    phyllip.file = "assemblage_age/geo_area_squamata_harm.data",
+    phyllip.file = "assemblage_age/geo_area_squamata_full.data",
     squamata_phy_bio,
     max.range.size = 3 
   )
@@ -221,15 +221,17 @@ age_comm <- Herodotools::calc_age_arrival(W = squamata_list_phy,
 
 sites <- dplyr::bind_cols(coords, site_region =  evoregion_squamata$site_region_squamata, age = age_comm$mean_age_per_assemblage)
 
-sites %>% 
+max(sites$mean_age_arrival)
+
+map_age <- sites %>% 
   ggplot() + 
-  ggplot2::geom_raster(ggplot2::aes(x = V1, y = V2, fill = sqrt(mean_age_arrival))) + 
+  ggplot2::geom_raster(ggplot2::aes(x = V1, y = V2, fill = mean_age_arrival)) + 
   rcartocolor::scale_fill_carto_c(type = "quantitative", 
                                   palette = "SunsetDark",
                                   direction = 1, 
-                                  limits = c(0, 12),  ## max percent overall
-                                  breaks = seq(0, 12, by = 2),
-                                  labels = glue::glue("{seq(0, 12, by = 2)}")) +
+                                  limits = c(0, 120),  ## max percent overall
+                                  breaks = seq(0, 120, by = 40),
+                                  labels = glue::glue("{seq(0, 120, by = 40)}")) +
   ggplot2::geom_sf(data = coastline, size = 0.4) +
   ggplot2::coord_sf(xlim = map_limits$x, ylim = map_limits$y) +
   ggplot2::ggtitle("") + 
@@ -251,6 +253,64 @@ sites %>%
 map_age
 
 # Save dataset
-age_squamata <- cbind(coords_id,sites[,3:4])
-write.table(age_squamata,"assemblage_age/age_squamata_harm.txt")
-read.table('assemblage_age/age_squamata.txt')
+#age_squamata <- cbind(coords_id,sites[,3:4])
+#write.table(age_squamata,"assemblage_age/age_squamata_full.txt")
+#read.table('assemblage_age/age_squamata.txt')
+
+# Wed Mar  8 20:14:25 2023 ------------------------------
+# diversification rate metrics
+
+# in situ
+squamata_diversification <- 
+  Herodotools::calc_insitu_diversification(W = squamata_list_phy, 
+                                           tree = squamata_phy_bio, 
+                                           ancestral.area = node_area, 
+                                           biogeo = biogeo_area, 
+                                           diversification = "jetz",
+                                           type = "equal.splits")
+
+
+# join dataset for plot
+sites_squamata <- dplyr::bind_cols(coords,
+                          site_region =  site_region,
+                          age = age_comm$mean_age_per_assemblage,
+                          diversification_model_based = squamata_diversification$model_based_Jetz_harmonic_mean_site,
+                          diversification = squamata_diversification$Jetz_harmonic_mean_site)
+
+# Save dataset
+dr_age_squamata <- cbind(coords_id,sites_squamata[,4:6])
+write.table(dr_age_squamata,"assemblage_age/metrics_squamata_full.txt")
+
+min(dr_age_squamata$diversification)
+max(dr_age_squamata$diversification)
+
+
+# plot of harmonic-mean of diversification rate 
+map_diversification <- sites_squamata %>% 
+  ggplot2::ggplot() + 
+  ggplot2::geom_raster(ggplot2::aes(x = V1, y = V2, fill = diversification)) + 
+  rcartocolor::scale_fill_carto_c(type = "quantitative", 
+                                  palette = "SunsetDark",
+                                  direction = 1, 
+                                  limits = c(0.03, 0.07))+  ## max percent overall
+  #breaks = seq(0, 0.030, by = 0.01))+
+  #labels = glue::glue("{seq(0.010, 0.030, by = 0.010)}")) +
+  ggplot2::geom_sf(data = coastline, size = 0.4) +
+  ggplot2::coord_sf(xlim = map_limits$x, ylim = map_limits$y) +
+  ggplot2::ggtitle("D") + 
+  ggplot2::theme_bw() +
+  ggplot2::labs(fill = "DR") +
+  ggplot2::guides(fill = guide_colorbar(barheight = unit(3, units = "mm"),  
+                                        direction = "horizontal",
+                                        ticks.colour = "grey20",
+                                        title.position = "top",
+                                        label.position = "bottom",
+                                        title.hjust = 0.5)) +
+  ggplot2::theme(
+    legend.position = "bottom",
+    axis.title = element_blank(),
+    axis.text = element_text(size = 5)
+  )
+
+map_squamata_complete <- squamata_richness + map_joint_evoregion_squamata +
+  map_age + map_diversification

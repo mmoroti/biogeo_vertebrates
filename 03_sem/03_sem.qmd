@@ -26,6 +26,7 @@ full_data <- read.table("dataset_metrics.txt")
 abiotic_data <- read.table("abiotic_data.txt")
 ```
 
+
 ```{r,message=FALSE, abiotic data}
 # shapefile data
 grid_ma <- readOGR("gridmacro.shp") #432 grids
@@ -189,7 +190,7 @@ Models correcting spatial autocorrelation
 ###### 2.2.1. Amphibia
 ```{r}
 # Amphibia
-# spaceCor     
+# spaceCor
 gls.amp.1.exp <- gls(fdis_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceExp)
 gls.amp.2.exp <- gls(rich_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceExp)
 gls.amp.3.exp <- gls(aa_amp ~ climate_amp + Elevation + Productivity,data = sem_dataset, correlation = spaceExp)
@@ -202,7 +203,7 @@ gls.amp.3.gaus <- gls(aa_amp ~ climate_amp + Elevation + Productivity,data = sem
 gls.amp.4.gaus <- gls(dr_amp ~ aa_amp + climate_amp + Elevation + Productivity, data = sem_dataset, correlation = spaceGaus)
 
 #spaceLin
-gls.amp.1.lin <- gls(fdis_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceLin)
+#gls.amp.1.lin <- gls(fdis_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = spaceLin)
 gls.amp.2.lin <- gls(rich_amp ~ climate_amp + Elevation + Productivity + dr_amp + aa_amp, data=sem_dataset, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T))
 gls.amp.3.lin <- gls(aa_amp ~ climate_amp + Elevation + Productivity,data = sem_dataset, correlation = spaceLin)
 gls.amp.4.lin <- gls(dr_amp ~ aa_amp + climate_amp + Elevation + Productivity, data = sem_dataset, correlation = spaceLin)
@@ -224,7 +225,7 @@ gls.amp.4.spher <- gls(dr_amp ~ aa_amp + climate_amp + Elevation + Productivity,
 ```{r}
 # spaceExp
 gls.rep.1.exp <- gls(fdis_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation= corExp(c(500, 0.1), form =~ V2+V1, nugget=T))
-gls.rep.2.exp <- gls(rich_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation = spaceExp)
+gls.rep.2.exp <- gls(rich_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset, correlation = corExp(c(500, 0.1), form =~ V2+V1, nugget=T))
 gls.rep.3.exp <- gls(aa_squa ~ climate_squa + Elevation + Productivity,data = sem_dataset, correlation = spaceExp)
 gls.rep.4.exp <- gls(dr_squa ~ aa_squa + climate_squa + Elevation + Productivity, data = sem_dataset, correlation= corExp(c(500, 0.1), form =~ V2+V1, nugget=T))
 
@@ -259,7 +260,7 @@ gls.rep.4.spher <- gls(dr_squa ~ aa_squa + climate_squa + Elevation + Productivi
 gls.bird.1.exp <- gls(fdis_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset,  correlation = corExp(c(200, 0.1), form =~ V2+V1, nugget=T))
 gls.bird.2.exp <- gls(rich_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds, data=sem_dataset, correlation = spaceExp)
 gls.bird.3.exp <- gls(aa_birds ~ climate_birds + Elevation + Productivity,data = sem_dataset, correlation = spaceExp)
-gls.bird.4.exp <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Productivity, data = sem_dataset, correlation = corExp(c(200, 0.1), form =~ V2+V1, nugget=T))
+gls.bird.4.exp <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Productivity, data = sem_dataset, correlation = corExp(c(800, 0.1), form =~ V2+V1, nugget=T))
 
 # spaceGaus
 gls.bird.1.gaus <- gls(fdis_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = spaceGaus)
@@ -268,10 +269,10 @@ gls.bird.3.gaus <- gls(aa_birds ~ climate_birds + Elevation + Productivity,data 
 gls.bird.4.gaus <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Productivity, data = sem_dataset, correlation = spaceGaus)
 
 # spaceLin
-gls.bird.1.lin <- gls(fdis_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = spaceLin)
-gls.bird.2.lin <- gls(rich_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds, data=sem_dataset, correlation = spaceLin)
+gls.bird.1.lin <- gls(fdis_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T))
+#gls.bird.2.lin <- gls(rich_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds, data=sem_dataset, correlation = spaceLin)
 gls.bird.3.lin <- gls(aa_birds ~ climate_birds + Elevation + Productivity,data = sem_dataset, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T)) ###
-gls.bird.4.lin <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Productivity, data = sem_dataset, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T))
+gls.bird.4.lin <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Productivity, data = sem_dataset, correlation = corLin(c(500, 0.1), form =~ V2+V1, nugget=T))
 
 # spaceRatio
 gls.bird.1.ratio <- gls(fdis_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset, correlation = spaceRatio)
@@ -301,7 +302,7 @@ gls.mam.3.gaus <- gls(aa_mammals ~ climate_mammals + Elevation + Productivity,da
 gls.mam.4.gaus <- gls(dr_mammals ~ aa_mammals + climate_mammals + Elevation + Productivity, data = sem_dataset, correlation = spaceGaus)
 
 # spaceLin
-gls.mam.1.lin <- gls(fdis_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation=spaceLin)
+gls.mam.1.lin <- gls(fdis_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation=corLin(c(200, 0.1), form =~ V2+V1, nugget=T))
 gls.mam.2.lin <- gls(rich_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals, data=sem_dataset, correlation = spaceLin)
 gls.mam.3.lin <- gls(aa_mammals ~ climate_mammals + Elevation + Productivity,data = sem_dataset, correlation = spaceLin)
 gls.mam.4.lin <- gls(dr_mammals ~ aa_mammals + climate_mammals + Elevation + Productivity, data = sem_dataset, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T))
@@ -316,7 +317,7 @@ gls.mam.4.ratio <- gls(dr_mammals ~ aa_mammals + climate_mammals + Elevation + P
 gls.mam.1.spher <- gls(fdis_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset, correlation=spaceSpher)
 gls.mam.2.spher <- gls(rich_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals, data=sem_dataset, correlation = spaceSpher)
 gls.mam.3.spher <- gls(aa_mammals ~ climate_mammals + Elevation + Productivity,data = sem_dataset, correlation = spaceSpher)
-gls.mam.4.spher <- gls(dr_mammals ~ aa_mammals + climate_mammals + Elevation + Productivity, data = sem_dataset, correlation = spaceSpher)
+gls.mam.4.spher <- gls(dr_mammals ~ aa_mammals + climate_mammals + Elevation + Productivity, data = sem_dataset, correlation = corSpher(c(200, 0.1), form =~ V2+V1, nugget=T))
 ```
 
 ##### 2.3. Model selection
@@ -324,50 +325,50 @@ Selecting the models with the best fit and diagnosis of the GLS (Predicted vs Re
 ###### 2.3.1. Amphibia
 ```{r}
 # Anfíbios
-AIC(gls.amp.1.exp, gls.amp.1.gaus, gls.amp.1.lin , gls.amp.1.ratio, gls.amp.1.spher) #gls.amp.1.exp
-AIC(gls.amp.2.exp, gls.amp.2.gaus, gls.amp.2.ratio, gls.amp.2.spher, gls.amp.2.lin) # gls.amp.2.exp    
+AIC(gls.amp.1.exp, gls.amp.1.gaus, gls.amp.1.ratio, gls.amp.1.spher) #gls.amp.1.spher
+AIC(gls.amp.2.exp, gls.amp.2.gaus, gls.amp.2.ratio, gls.amp.2.spher, gls.amp.2.lin) # gls.amp.2.ratio   
 AIC(gls.amp.3.exp, gls.amp.3.gaus, gls.amp.3.lin , gls.amp.3.ratio, gls.amp.3.spher) # gls.amp.3.exp 
-AIC(gls.amp.4.exp, gls.amp.4.gaus, gls.amp.4.ratio, gls.amp.4.spher, gls.amp.4.lin) # gls.amp.4.ratio  
+AIC(gls.amp.4.exp, gls.amp.4.gaus, gls.amp.4.ratio, gls.amp.4.spher, gls.amp.4.lin) # gls.amp.4.exp  
 
 #diagnosis
-amp1exp <- plot(gls.amp.1.exp, main="gls.amp.1.exp")
-amp2exp <- plot(gls.amp.2.exp, main="gls.amp.2.exp")
-amp3exp <- plot(gls.amp.3.exp, main="gls.amp.3.exp")
-amp4ratio <- plot(gls.amp.4.ratio, main="gls.amp.4.ratio")
+amp1 <- plot(gls.amp.1.spher, main="gls.amp.1.spher")
+amp2 <- plot(gls.amp.2.ratio, main="gls.amp.2.ratio")
+amp3 <- plot(gls.amp.3.exp, main="gls.amp.3.exp")
+amp4 <- plot(gls.amp.4.exp, main="gls.amp.4.exp")
 #plot
-plot_grid(amp1exp,amp2exp,amp3exp,amp4ratio, align = "h", rel_widths = c(1, 1),labels = NULL)
+plot_grid(amp1,amp2,amp3,amp4, align = "h", rel_widths = c(1, 1),labels = NULL)
 ```
 
 ###### 2.3.2. Squamata
 ```{r}
-AIC(gls.rep.1.exp, gls.rep.1.gaus, gls.rep.1.lin, gls.rep.1.ratio, gls.rep.1.spher) # gls.rep.1.spher
-AIC(gls.rep.2.exp, gls.rep.2.ratio, gls.rep.2.gaus, gls.rep.2.lin, gls.rep.2.spher) # gls.rep.2.spher
-AIC(gls.rep.3.exp, gls.rep.3.gaus, gls.rep.3.lin, gls.rep.3.ratio, gls.rep.3.spher) #gls.rep.3.lin
-AIC(gls.rep.4.gaus, gls.rep.4.lin, gls.rep.4.ratio, gls.rep.4.spher) #gls.rep.4.ratio
+AIC(gls.rep.1.exp, gls.rep.1.gaus, gls.rep.1.lin, gls.rep.1.ratio, gls.rep.1.spher) # gls.rep.1.lin
+AIC(gls.rep.2.exp, gls.rep.2.ratio, gls.rep.2.gaus, gls.rep.2.lin, gls.rep.2.spher) # gls.rep.2.ratio
+AIC(gls.rep.3.exp, gls.rep.3.gaus, gls.rep.3.lin, gls.rep.3.ratio, gls.rep.3.spher) #gls.rep.3.ratio
+AIC(gls.rep.4.gaus, gls.rep.4.lin, gls.rep.4.ratio, gls.rep.4.spher,  gls.rep.4.exp) #gls.rep.4.spher
 
 #Diagnose GLS répteis
-rep1spher <- plot(gls.rep.1.spher, main="gls.rep.1.spher")
-rep2spher <- plot(gls.rep.2.spher, main="gls.rep.2.spher")
-rep3lin <- plot(gls.rep.3.lin, main="gls.rep.3.lin")
-rep4ratio <- plot(gls.rep.4.ratio, main="gls.rep.4.ratio")
+rep1 <- plot(gls.rep.1.lin, main="gls.rep.1.lin")
+rep2 <- plot(gls.rep.2.ratio, main="gls.rep.2.ratio")
+rep3 <- plot(gls.rep.3.ratio, main="gls.rep.3.ratio")
+rep4 <- plot(gls.rep.4.spher, main="gls.rep.4.spher")
 #combinacao
-plot_grid(rep1spher,rep2spher,rep3lin,rep4ratio, align = "h", rel_widths = c(1, 1),labels = NULL)
+plot_grid(rep1,rep2,rep3,rep4, align = "h", rel_widths = c(1, 1),labels = NULL)
 ```
 
 ###### 2.3.3. Birds
 ```{r}
-AIC(gls.bird.1.gaus, gls.bird.1.lin, gls.bird.1.ratio, gls.bird.1.spher, gls.bird.1.exp)  #gls.bird.1.exp 
-AIC(gls.bird.2.exp, gls.bird.2.gaus, gls.bird.2.lin, gls.bird.2.ratio, gls.bird.2.spher) #gls.bird.2.exp
+AIC(gls.bird.1.gaus, gls.bird.1.lin, gls.bird.1.ratio, gls.bird.1.spher, gls.bird.1.exp)  #gls.bird.1.spher 
+AIC(gls.bird.2.exp, gls.bird.2.gaus, gls.bird.2.ratio, gls.bird.2.spher) #gls.bird.2.ratio
 AIC(gls.bird.3.exp, gls.bird.3.gaus, gls.bird.3.ratio, gls.bird.3.spher, gls.bird.3.lin) #gls.bird.3.lin 
-AIC(gls.bird.4.gaus, gls.bird.4.lin, gls.bird.4.ratio, gls.bird.4.spher, gls.bird.4.exp) # gls.bird.4.ratio 
+AIC(gls.bird.4.exp,gls.bird.4.gaus, gls.bird.4.lin, gls.bird.4.ratio, gls.bird.4.spher) # gls.bird.4.ratio 
 
 # squamata gls diagnosis
-bird1exp <- plot(gls.bird.1.exp, main="gls.bird.1.exp")
-bird2exp <- plot(gls.bird.2.exp, main="gls.bird.2.exp")
-bird3lin <- plot(gls.bird.3.lin, main="gls.bird.3.lin")
-bird4ratio <- plot(gls.bird.4.ratio, main="gls.bird.4.ratio")
+bird1 <- plot(gls.bird.1.spher, main="gls.bird.1.spher")
+bird2 <- plot(gls.bird.2.ratio, main="gls.bird.2.ratio")
+bird3 <- plot(gls.bird.3.lin, main="gls.bird.3.lin")
+bird4 <- plot(gls.bird.4.ratio, main="gls.bird.4.ratio")
 # combinacao
-plot_grid(bird1exp,bird2exp,bird3lin,bird4ratio, align = "h", rel_widths = c(1, 1),labels = NULL)
+plot_grid(bird1,bird2,bird3,bird4, align = "h", rel_widths = c(1, 1),labels = NULL)
 ```
 
 ###### 2.3.4. Mammals
@@ -376,37 +377,37 @@ plot_grid(bird1exp,bird2exp,bird3lin,bird4ratio, align = "h", rel_widths = c(1, 
 AIC(gls.mam.1.exp, gls.mam.1.gaus, gls.mam.1.lin, gls.mam.1.ratio, gls.mam.1.spher) #gls.mam.1.spher
 AIC(gls.mam.2.exp, gls.mam.2.gaus, gls.mam.2.lin, gls.mam.2.ratio, gls.mam.2.spher) #gls.mam.2.spher
 AIC(gls.mam.3.exp, gls.mam.3.gaus, gls.mam.3.lin, gls.mam.3.ratio, gls.mam.3.spher) #gls.mam.3.spher
-AIC(gls.mam.4.exp, gls.mam.4.gaus, gls.mam.4.lin, gls.mam.4.ratio, gls.mam.4.spher) #gls.mam.4.spher
+AIC(gls.mam.4.exp, gls.mam.4.gaus, gls.mam.4.lin, gls.mam.4.ratio, gls.mam.4.spher) #gls.mam.4.exp
 
 #Diagnose mammals
-mamspher1 <- plot(gls.mam.1.spher, main="gls.mam.1.spher")
-mamspher2 <- plot(gls.mam.2.spher, main="gls.mam.2.spher")
-mamspher3 <- plot(gls.mam.3.spher, main="gls.mam.3.spher")
-mamspher4 <- plot(gls.mam.4.spher, main="gls.mam.4.spher")
+mam1 <- plot(gls.mam.1.spher, main="gls.mam.1.spher")
+mam2 <- plot(gls.mam.2.spher, main="gls.mam.2.spher")
+mam3 <- plot(gls.mam.3.spher, main="gls.mam.3.spher")
+mam4 <- plot(gls.mam.4.exp, main="gls.mam.4.exp")
 # combinacao
-plot_grid(mamspher1,mamspher2,mamspher3,mamspher4, align = "h", rel_widths = c(1, 1),labels = NULL)
+plot_grid(mam1,mam2,mam3,mam4, align = "h", rel_widths = c(1, 1),labels = NULL)
 ```
 
 ##### 2.4. SEM models
 ```{r}
 # amphibia
-anura.psem <- psem(gls.amp.1.exp, gls.amp.2.exp, gls.amp.3.exp, gls.amp.4.ratio)
+anura.psem <- psem(gls.amp.1.spher, gls.amp.2.ratio, gls.amp.3.exp, gls.amp.4.exp)
 summary(anura.psem)
 resid.anura <- residuals(anura.psem)
 
 #Squamata
-reptilia.psem <- psem(gls.rep.1.spher, gls.rep.2.spher, gls.rep.3.lin, gls.rep.4.ratio)
-summary(reptilia.psem)
+reptilia.psem <- psem(gls.rep.1.lin, gls.rep.2.ratio, gls.rep.3.ratio, gls.rep.4.spher)
+#summary(reptilia.psem)
 resid.rep <- residuals(reptilia.psem)
 
 #Birds
-birds.psem <- psem(gls.bird.1.exp, gls.bird.2.exp, gls.bird.3.lin, gls.bird.4.ratio)
-summary(birds.psem)
+birds.psem <- psem(gls.bird.1.spher, gls.bird.2.lin, gls.bird.3.lin, gls.bird.4.ratio)
+#summary(birds.psem)
 resid.birds <- residuals(birds.psem)
 
 #Mammals
-mammals.psem <- psem(gls.mam.1.spher, gls.mam.2.spher, gls.mam.3.spher, gls.mam.4.spher)
-summary(mammals.psem)
+mammals.psem <- psem(gls.mam.1.spher, gls.mam.2.spher, gls.mam.3.spher, gls.mam.4.exp)
+#summary(mammals.psem)
 resid.mammals <- residuals(mammals.psem)
 ```
 
@@ -453,7 +454,7 @@ mapdr.amp <- tm_shape(grid_data) +
     tm_layout(legend.outside = TRUE,frame = FALSE)
 
 mapmpd.amp <- tm_shape(grid_data) +
-    tm_fill("aa_amp", palette = "viridis", style = "cont", title="Assemblage age") +
+    tm_fill("aa_amp", palette = "viridis", style = "cont", title="AA") +
     tm_borders(alpha=.3) +
     tm_layout(legend.outside = TRUE,frame = FALSE)
 
@@ -476,7 +477,7 @@ mapdr.rep <- tm_shape(grid_data) +
     tm_layout(legend.outside = TRUE,frame = FALSE)
 
 mapmpd.rep <- tm_shape(grid_data) +
-    tm_fill("aa_squa", palette = "viridis", style = "cont", title="Assemblage age") +
+    tm_fill("aa_squa", palette = "viridis", style = "cont", title="AA") +
     tm_borders(alpha=.3) +
     tm_layout(legend.outside = TRUE,frame = FALSE)
 
@@ -497,7 +498,7 @@ mapdr.bird <- tm_shape(grid_data) +
     tm_borders(alpha=.3) +
     tm_layout(legend.outside = TRUE,frame = FALSE)
 mapmpd.bird <- tm_shape(grid_data) +
-    tm_fill("aa_birds", palette = "viridis", style = "cont",title="Assemblage age") +
+    tm_fill("aa_birds", palette = "viridis", style = "cont",title="AA") +
     tm_borders(alpha=.3) +
     tm_layout(legend.outside = TRUE,frame = FALSE)
 maprich.bird <- tm_shape(grid_data) +
@@ -519,7 +520,7 @@ mapdr.mam <- tm_shape(grid_data) +
   tm_layout(legend.outside = TRUE,frame = FALSE)
 
 mapmpd.mam <- tm_shape(grid_data) +
-  tm_fill("aa_mammals", palette = "viridis", style = "cont", title="Assemblage age") +
+  tm_fill("aa_mammals", palette = "viridis", style = "cont", title="AA") +
   tm_borders(alpha=.3)+
   tm_layout(legend.outside = TRUE,frame = FALSE)
 
