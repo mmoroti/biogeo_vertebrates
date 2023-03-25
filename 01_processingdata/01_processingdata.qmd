@@ -18,6 +18,8 @@ library(picante) # vegan package included
 library(phytools) #phylogenetic data
 library(sf) #spatial data
 library(rgdal) #spatial data
+library(raster) # raster data extract
+library(exactextractr) # raster data extract cv
 ```
 
 ##### 0.1. Loading files
@@ -25,7 +27,7 @@ library(rgdal) #spatial data
 ###### 0.1.1. Grid of Atlantic forest
 
 ```{r}
-grid_ma <- readOGR("Shapefiles/gridmacro.shp") #432 grids
+grid_ma <- readOGR("gridmacro.shp") #432 grids
 grid_center <- coordinates(grid_ma) # obtain center of grid
 grid_ma <- st_as_sf(grid_ma) # convert to sf object
 grid_ma <- st_set_crs(grid_ma, 4326) # convert to WGS84
@@ -52,7 +54,7 @@ prod <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBA
 
 #Topography
 #EarthEnv (https://www.earthenv.org/)
-# dataset elevation, aggregation median, sources gmted2010, resolution 1km
+# dataset elevation, aggregation mean, sources gmted2010, resolution 1km
 topography <- raster("abiotic_data/elevation_1KMmd_GMTEDmd.tif")
 ```
 
@@ -679,13 +681,11 @@ data_abiotic <- data_abiotic[,-11]
 ###### 1.2.3 Topography
 
 ```{r}
-data_topography <- raster::extract(topography,             
-                                   grid_center,   
-                                 fun=mean,     
-                                 df=TRUE)
+cv <- exact_extract(topography,grid_ma, "coefficient_of_variation")
+cbind(id = grid_ma$id, cv)
 
 # join with others abiotic data
-data_abiotic_all <- cbind(data_abiotic, data_topography)
+data_abiotic_all <- cbind(data_abiotic, cv)
 data_abiotic_all <- data_abiotic_all[,-12]
 ```
 
@@ -732,23 +732,23 @@ write.table(mammals_phy_traits, "02_metrics/harmonized_data/trait_mammals.txt")#
 # non harmonized dataset
 
 # amphibia
-write.tree(phy_amphibia_all, "02_metrics/nonharmonized_data/amphibia.tre") # 487 spp
-write.table(amphibia_list, "02_metrics/nonharmonized_data/list_amphibia.txt") #519 spp - +id
-write.table(amphibia_traits_na, "02_metrics/nonharmonized_data/trait_amphibia.txt")# 506 spp
+write.tree(phy_amphibia_all, "02_metrics/full_data/amphibia.tre") # 487 spp
+write.table(amphibia_list, "02_metrics/full_data/list_amphibia.txt") #519 spp - +id
+write.table(amphibia_traits_na, "02_metrics/full_data/trait_amphibia.txt")# 506 spp
 
 # squamata
-write.tree(full_squamata_phy, "02_metrics/nonharmonized_data/squamata.tre") # 382 spp
-write.table(squamata_full_list, "02_metrics/nonharmonized_data/list_squamata.txt") #403 spp - +id
-write.table(squamata_traits_na, "02_metrics/nonharmonized_data/trait_squamata.txt")# 380 spp
+write.tree(full_squamata_phy, "02_metrics/full_data/squamata.tre") # 382 spp
+write.table(squamata_full_list, "02_metrics/full_data/list_squamata.txt") #403 spp - +id
+write.table(squamata_traits_na, "02_metrics/full_data/trait_squamata.txt")# 380 spp
 
 # birds
-write.tree(full_birds_phy, "02_metrics/nonharmonized_data/birds.tre") # 695 spp
-write.table(birds_full_list, "02_metrics/nonharmonized_data/list_birds.txt") #815 spp - +id
-write.table(birds_traits_na, "02_metrics/nonharmonized_data/trait_birds.txt")# 777 spp
+write.tree(full_birds_phy, "02_metrics/full_data/birds.tre") # 695 spp
+write.table(birds_full_list, "02_metrics/full_data/list_birds.txt") #815 spp - +id
+write.table(birds_traits_na, "02_metrics/full_data/trait_birds.txt")# 777 spp
 
 # mammals
-write.tree(full_mammals_phy, "02_metrics/nonharmonized_data/mammals.tre") # 196 spp
-write.table(mammals_full_list, "02_metrics/nonharmonized_data/list_mammals.txt") #236 spp - +id
-write.table(mammals_traits_na, "02_metrics/nonharmonized_data/trait_mammals.txt") # 232 spp
+write.tree(full_mammals_phy, "02_metrics/full_data/mammals.tre") # 196 spp
+write.table(mammals_full_list, "02_metrics/full_data/list_mammals.txt") #236 spp - +id
+write.table(mammals_traits_na, "02_metrics/full_data/trait_mammals.txt") # 232 spp
 #---------------------
 ```
