@@ -6,6 +6,7 @@ editor: visual
 ---
 
 ##### 0.0. Load libraries
+
 ```{r}
 library(sf) #spatial data
 library(rgdal) #spatial data
@@ -21,11 +22,11 @@ library(tmap) #plot map
 ```
 
 ##### 0.1. Load data
+
 ```{r}
 full_data <- read.table("dataset_metrics.txt")
 abiotic_data <- read.table("abiotic_data.txt")
 ```
-
 
 ```{r,message=FALSE, abiotic data}
 # shapefile data
@@ -35,53 +36,57 @@ grid_ma <- st_as_sf(grid_ma) # convert to sf object
 grid_ma <- st_set_crs(grid_ma, 4326) # convert to WGS84
 ```
 
-##### 1.0. Spatial congruence with Tjøstheim’s Coefficient
-Tjøstheim (1978) introduced a nonparametric coefficient to measure the association between two spatial sequences. This measure is useful even for two ordinal variables. It constitutes an extension of standard rank-order correlation coefficients such as Spearman’s rho and Kendall’s tau (Glick 1982).
+##### 1.0. Spatial congruence with Tjøstheim's Coefficient
+
+Tjøstheim (1978) introduced a nonparametric coefficient to measure the association between two spatial sequences. This measure is useful even for two ordinal variables. It constitutes an extension of standard rank-order correlation coefficients such as Spearman's rho and Kendall's tau (Glick 1982).
+
 ```{r}
 # preparing data
 data_analysis <- left_join(grid_ma, full_data, by = "id")
 
 # computing Tjostheim's coefficient
 # fdis
-cor.spatial(data_analysis$fdis_birds, data_analysis$fdis_mammals, grid_center)
-cor.spatial(data_analysis$fdis_birds, data_analysis$fdis_squa, grid_center)
-cor.spatial(data_analysis$fdis_birds,data_analysis$fdis_amp,grid_center)
-cor.spatial(data_analysis$fdis_mammals,data_analysis$fdis_squa,grid_center)
-cor.spatial(data_analysis$fdis_mammals,data_analysis$fdis_amp,grid_center)
-cor.spatial(data_analysis$fdis_squa,data_analysis$fdis_amp,grid_center)
+modified.ttest(data_analysis$fdis_birds, data_analysis$fdis_mammals, grid_center,nclass = NULL)
+modified.ttest(data_analysis$fdis_birds, data_analysis$fdis_squa, grid_center,nclass = NULL)
+modified.ttest(data_analysis$fdis_birds,data_analysis$fdis_amp,grid_center,nclass = NULL)
+modified.ttest(data_analysis$fdis_mammals,data_analysis$fdis_squa,grid_center,nclass = NULL)
+modified.ttest(data_analysis$fdis_mammals,data_analysis$fdis_amp,grid_center,nclass = NULL)
+modified.ttest(data_analysis$fdis_squa,data_analysis$fdis_amp,grid_center,nclass = NULL)
 
 # rich 
-cor.spatial(data_analysis$rich_birds, data_analysis$rich_mammals, grid_center)
-cor.spatial(data_analysis$rich_birds, data_analysis$rich_squa, grid_center)
-cor.spatial(data_analysis$rich_birds,data_analysis$rich_amp,grid_center)
-cor.spatial(data_analysis$rich_mammals,data_analysis$rich_squa,grid_center)
-cor.spatial(data_analysis$rich_mammals,data_analysis$rich_amp,grid_center)
-cor.spatial(data_analysis$rich_squa,data_analysis$rich_amp,grid_center)
+modified.ttest(data_analysis$rich_birds, data_analysis$rich_mammals, grid_center,nclass = NULL)
+modified.ttest(data_analysis$rich_birds, data_analysis$rich_squa, grid_center,nclass = NULL)
+modified.ttest(data_analysis$rich_birds,data_analysis$rich_amp,grid_center,nclass = NULL)
+modified.ttest(data_analysis$rich_mammals,data_analysis$rich_squa,grid_center,nclass = NULL)
+modified.ttest(data_analysis$rich_mammals,data_analysis$rich_amp,grid_center,nclass = NULL)
+modified.ttest(data_analysis$rich_squa,data_analysis$rich_amp,grid_center,nclass = NULL)
 
 # dr 
-cor.spatial(data_analysis$dr_birds, data_analysis$dr_mammals, grid_center)
-cor.spatial(data_analysis$dr_birds, data_analysis$dr_squa, grid_center)
-cor.spatial(data_analysis$dr_birds,data_analysis$dr_amp,grid_center)
-cor.spatial(data_analysis$dr_mammals,data_analysis$dr_squa,grid_center)
-cor.spatial(data_analysis$dr_mammals,data_analysis$dr_amp,grid_center)
-cor.spatial(data_analysis$dr_squa,data_analysis$dr_amp,grid_center)
+modified.ttest(data_analysis$dr_birds, data_analysis$dr_mammals, grid_center,nclass = NULL)
+modified.ttest(data_analysis$dr_birds, data_analysis$dr_squa, grid_center,nclass = NULL)
+modified.ttest(data_analysis$dr_birds,data_analysis$dr_amp,grid_center,nclass = NULL)
+modified.ttest(data_analysis$dr_mammals,data_analysis$dr_squa,grid_center,nclass = NULL)
+modified.ttest(data_analysis$dr_mammals,data_analysis$dr_amp,grid_center,nclass = NULL)
+modified.ttest(data_analysis$dr_squa,data_analysis$dr_amp,grid_center,nclass = NULL)
 
 
 # aa 
-cor.spatial(data_analysis$aa_birds, data_analysis$aa_mammals, grid_center)
-cor.spatial(data_analysis$aa_birds, data_analysis$aa_squa, grid_center)
-cor.spatial(data_analysis$aa_birds,data_analysis$aa_amp,grid_center)
-cor.spatial(data_analysis$aa_mammals,data_analysis$aa_squa,grid_center)
-cor.spatial(data_analysis$aa_mammals,data_analysis$aa_amp,grid_center)
-cor.spatial(data_analysis$aa_squa,data_analysis$aa_amp,grid_center)
-``` 
-
+modified.ttest(data_analysis$aa_birds, data_analysis$aa_mammals, grid_center,nclass = NULL)
+modified.ttest(data_analysis$aa_birds, data_analysis$aa_squa, grid_center,nclass = NULL)
+modified.ttest(data_analysis$aa_birds,data_analysis$aa_amp,grid_center,nclass = NULL)
+modified.ttest(data_analysis$aa_mammals,data_analysis$aa_squa,grid_center,nclass = NULL)
+modified.ttest(data_analysis$aa_mammals,data_analysis$aa_amp,grid_center,nclass = NULL)
+modified.ttest(data_analysis$aa_squa,data_analysis$aa_amp,grid_center,nclass = NULL)
+```
 
 ##### 2.0. Structural equation model
+
 SEM is a useful tool for quantifying direct and indirect effects of each predictor variable on the response variable. First, let's create a latent variable called weather with the data obtained from CHELSA
 
 ##### 2.1. Composite variable
+
 Variables selection using VIF
+
 ```{r}
 # Preparing dataset
 data_full <- left_join(full_data,abiotic_data, by="id")
@@ -122,7 +127,9 @@ vif(ml2_mammals)
 #create horizontal bar chart to display each VIF value
 barplot(vif(ml2_mammals), main = "VIF Values", horiz = TRUE, col = "steelblue")+abline(v = 20)
 ```
+
 Composite variable construction
+
 ```{r}
 # amphibia composite climate
 rich_03_amp <- summary(ml2_amp)$coefficients[2, 1]
@@ -179,7 +186,9 @@ sem_dataset <- left_join(data_full, coords_dataset, by="id")
 ```
 
 ##### 2.2. GLS models
+
 Correlation structures
+
 ```{r}
 spaceExp <- corExp(form =~ V2+V1, nugget=T)
 spaceGaus <- corGaus(form =~ V2+V1, nugget=T)
@@ -187,8 +196,9 @@ spaceLin <- corLin(form=~ V2+V1, nugget=T)
 spaceRatio <- corRatio(form=~ V2+V1, nugget=T)
 spaceSpher <- corSpher(form= ~V2+V1, nugget=T)
 ```
-Models correcting spatial autocorrelation
-###### 2.2.0 Transformation of data
+
+Models correcting spatial autocorrelation \###### 2.2.0 Transformation of data
+
 ```{r}
 coords <- sem_dataset[,33:34] # coordinates of df
 # new object 
@@ -199,6 +209,7 @@ sem_dataset_trans <-cbind(sem_dataset_trans,coords)
 ```
 
 ###### 2.2.1. Amphibia
+
 ```{r}
 # Amphibia
 # spaceCor
@@ -233,6 +244,7 @@ gls.amp.4.spher <- gls(dr_amp ~ aa_amp + climate_amp + Elevation + Productivity,
 ```
 
 ###### 2.2.2. Squamata
+
 ```{r}
 # spaceExp
 gls.rep.1.exp <- gls(fdis_squa ~ climate_squa + Elevation + Productivity + dr_squa + aa_squa, data=sem_dataset_trans, correlation= spaceExp)
@@ -266,6 +278,7 @@ gls.rep.4.spher <- gls(dr_squa ~ aa_squa + climate_squa + Elevation + Productivi
 ```
 
 ###### 2.2.3. Birds
+
 ```{r}
 # spaceExp
 gls.bird.1.exp <- gls(fdis_birds ~ climate_birds + Elevation + Productivity + dr_birds + aa_birds,data=sem_dataset_trans,  correlation = spaceExp)
@@ -299,6 +312,7 @@ gls.bird.4.spher <- gls(dr_birds ~ aa_birds + climate_birds + Elevation + Produc
 ```
 
 ###### 2.2.4. Mammals
+
 ```{r}
 # spaceExp
 gls.mam.1.exp <- gls(fdis_mammals ~ climate_mammals + Elevation + Productivity + dr_mammals + aa_mammals,data=sem_dataset_trans, correlation = corExp(c(100, 0.1), form =~ V2+V1, nugget=T))
@@ -332,8 +346,9 @@ gls.mam.4.spher <- gls(dr_mammals ~ aa_mammals + climate_mammals + Elevation + P
 ```
 
 ##### 2.3. Model selection
-Selecting the models with the best fit and diagnosis of the GLS (Predicted vs Residuals)
-###### 2.3.1. Amphibia
+
+Selecting the models with the best fit and diagnosis of the GLS (Predicted vs Residuals) \###### 2.3.1. Amphibia
+
 ```{r}
 # Anfíbios
 AIC(gls.amp.1.exp, gls.amp.1.gaus,gls.amp.1.lin, gls.amp.1.ratio, gls.amp.1.spher) #gls.amp.1.exp
@@ -351,6 +366,7 @@ plot_grid(amp1,amp2,amp3,amp4, align = "h", rel_widths = c(1, 1),labels = NULL)
 ```
 
 ###### 2.3.2. Squamata
+
 ```{r}
 AIC(gls.rep.1.exp, gls.rep.1.gaus, gls.rep.1.lin, gls.rep.1.ratio, gls.rep.1.spher) # gls.rep.1.spher
 AIC(gls.rep.2.exp, gls.rep.2.ratio, gls.rep.2.gaus, gls.rep.2.lin, gls.rep.2.spher) # gls.rep.2.spher
@@ -367,6 +383,7 @@ plot_grid(rep1,rep2,rep3,rep4, align = "h", rel_widths = c(1, 1),labels = NULL)
 ```
 
 ###### 2.3.3. Birds
+
 ```{r}
 AIC(gls.bird.1.gaus, gls.bird.1.lin, gls.bird.1.ratio, gls.bird.1.spher, gls.bird.1.exp)  #gls.bird.1.ratio 
 AIC(gls.bird.2.exp, gls.bird.2.gaus, gls.bird.2.ratio, gls.bird.2.spher, gls.bird.2.lin) #gls.bird.2.ratio
@@ -383,6 +400,7 @@ plot_grid(bird1,bird2,bird3,bird4, align = "h", rel_widths = c(1, 1),labels = NU
 ```
 
 ###### 2.3.4. Mammals
+
 ```{r}
 # Mamíferos
 AIC(gls.mam.1.exp, gls.mam.1.gaus, gls.mam.1.lin, gls.mam.1.ratio, gls.mam.1.spher) #gls.mam.1.spher/exp/lin
@@ -400,6 +418,7 @@ plot_grid(mam1,mam2,mam3,mam4, align = "h", rel_widths = c(1, 1),labels = NULL)
 ```
 
 ##### 2.4. SEM models
+
 ```{r}
 # amphibia
 anura.psem <- psem(gls.amp.1.exp, gls.amp.2.ratio, gls.amp.3.exp, gls.amp.4.spher)
@@ -423,7 +442,9 @@ resid.mammals <- residuals(mammals.psem)
 ```
 
 ##### 2.5. Spatial autocorrelation
+
 Moran I correlograms with SEM residuals
+
 ```{r}
 # Spatial autocorrelation in predictors variables
 distan <- lets.distmat(sem_dataset[, 33:34])
@@ -447,8 +468,8 @@ moran.mammals <- lets.correl(resid.mammals, distan, 12,
                      plot = TRUE)
 ```
 
-
 ##### 3.0. Figures
+
 ```{r}
 # maps
 grid_data <- full_join(grid_ma, sem_dataset_trans,  by="id")
@@ -550,6 +571,7 @@ tmap_save(mapmammals, "map_mammals.png", width=1920, height=1080, asp=0)
 ```
 
 Histogram of predictors variables
+
 ```{r}
 # richness
 par(mfrow=c(2,2))
@@ -675,6 +697,7 @@ hist(sem_dataset$dr_mammals,
 ```
 
 Scatter plot the FDis against species richness for each group and fit a loess curve, it's simple to do this in ggplot with stat_smooth
+
 ```{r}
 #Anuros
 anura.rich.fdisp <- ggplot(sem_dataset, aes(x=rich_amp, y=fdis_amp)) +
@@ -709,6 +732,7 @@ plot_grid(anura.rich.fdisp, rep.rich.fdisp, bird.rich.fdisp, mam.rich.fdisp, ali
 ```
 
 Trait space plot
+
 ```{r}
 
 # amphibia
@@ -741,6 +765,7 @@ biplot(rep.trait.space)
 biplot(bird.trait.space)
 biplot(mam.trait.space)
 ```
+
 ```{r}
 # Melhorando visualização 
 pca_anura <- prcomp(trait.dist, scale. = TRUE)
