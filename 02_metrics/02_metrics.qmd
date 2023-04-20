@@ -57,6 +57,8 @@ full_traits_squamata <- read.csv2("full_data/trait_squamata.txt", sep=" ")
 full_traits_birds <- read.csv2("full_data/trait_birds.txt", sep=" ")
 full_traits_mammals <- read.csv2("full_data/trait_mammals.txt", sep=" ")
 
+nrow(full_traits_amphibia)
+
 # harmonized data
 harm_traits_amphibia <- read.csv2("harmonized_data/trait_amphibia.txt", sep=" ") 
 harm_traits_squamata <- read.csv2("harmonized_data/trait_squamata.txt", sep= " ")
@@ -644,8 +646,11 @@ FDis_metric_mammals <- data.frame(id=harm_aa_amphibia$id, FDis=disp.func.mammals
 ```
 
 ##### 2.0. Sensitivity analysis
+
 ##### 2.1. Metrics correlation
+
 ###### 2.1.1. Richness
+
 ```{r}
 richness_amphibia <- as.data.frame(cbind(full_rich = full_rich_amphibia$richness, harm_rich = harm_rich_amphibia$richness))
 richness_squamata <- as.data.frame(cbind(full_rich = full_rich_squamata$richness, harm_rich = harm_rich_squamata$richness))
@@ -790,9 +795,8 @@ plot_grid(title, aa,ncol = 1,rel_heights = c(0.1, 1))
   # rel_heights values control vertical title margins
 ```
 
-
-
 ##### 2.2. Spatial correlation
+
 ```{r, preparing data for spatial correlation}
 # amphibia
 dr_amphibia <- cbind(id = grid_ma$id, dr_amphibia)
@@ -857,7 +861,9 @@ cor.spatial(mammals_data$full_dr, mammals_data$harm_dr, grid_center) # 0.773 +- 
 cor.spatial(mammals_data$full_rich, mammals_data$harm_rich, grid_center) # 0.838 +- 0.002
 cor.spatial(mammals_data$full_aa, mammals_data$harm_aa, grid_center) # 0.037 +- 0.002
 ```
+
 ##### 2.3. Missing traits in phylogeny
+
 ```{r, amphibia}
 # handling traits
 traits_amphibia <- full_traits_amphibia[-27,] # aplasto wey appear 2x
@@ -871,7 +877,8 @@ View(traits_amphibia)
 # prune sample with traits and phylogeny
 rownames(traits_amphibia) <- traits_amphibia[,1]
 prune.tree.amp <- t(traits_amphibia)
-tree <- prune.sample(prune, full_phy_amphibia)
+
+tree <- prune.sample(prune.tree.amp, full_phy_amphibia)
 
 # check data
 nrow(traits_amphibia)
@@ -916,6 +923,7 @@ gheatmap(phy, dados, offset=8, width=0.6,
   scale_fill_manual(breaks=c("Body size","Circadian activity","Habitat"), 
                     values=c("#ffb313", "firebrick", "darkgreen"), name="Traits")
 ```
+
 ```{r, squamata}
 # prune sample with traits and phylogeny
 traits_squamata <- full_traits_squamata
@@ -968,6 +976,7 @@ gheatmap(phy, dados, offset=8, width=0.6,
   scale_fill_manual(breaks=c("Body size","Circadian activity","Habitat"), 
                     values=c("#ffb313", "firebrick", "darkgreen"), name="Traits")
 ```
+
 ```{r, birds}
 # prune sample with traits and phylogeny
 traits_birds <- full_traits_birds # copy dataset
@@ -1027,6 +1036,7 @@ gheatmap(phy, dados, offset=8, width=0.6,
   scale_fill_manual(breaks=c("Body mass","Circadian activity","Habitat"), 
                     values=c("#ffb313", "firebrick", "darkgreen"), name="Traits")
 ```
+
 ```{r, mammals}
 # prune sample with traits and phylogeny
 traits_mammals <- full_traits_mammals
@@ -1083,8 +1093,63 @@ gheatmap(phy, dados, offset=8, width=0.6,
                     values=c("#ffb313", "firebrick", "darkgreen"), name="Traits")
 ```
 
+##### 2.4. SensiPhy traits test
+```{r}
+library(sensiPhy)
+library(caper)
+
+# Test phylogenetic signal for missing data:
+# frogs
+body_amphibia_miss <- miss.phylo.d(traits_amphibia[,-1], tree, binvar = Body_size_mm)
+actv_amphibia_miss <- miss.phylo.d(traits_amphibia[,-1], tree, binvar = Noc)
+habitat_amphibia_miss <- miss.phylo.d(traits_amphibia[,-1], tree, binvar = Fos)
+
+plot(body_amphibia_miss, main='Body size')
+plot(actv_amphibia_miss, main='Circadian activity')
+plot(habitat_amphibia_miss, main='Habitat')
+
+# squamata
+nrow(traits_squamata)
+tree_squa
+
+body_squamata_miss <- miss.phylo.d(traits_squamata[,-1], tree_squa, binvar = svl_mm)
+actv_squamata_miss <- miss.phylo.d(traits_squamata[,-1], tree_squa, binvar = diurnal)
+habitat_squamata_miss <- miss.phylo.d(traits_squamata[,-1], tree_squa, binvar = Terrestre)
+
+plot(body_squamata_miss, main='Body size')
+plot(actv_squamata_miss, main='Circadian activity')
+plot(habitat_squamata_miss, main='Habitat')
+
+# birds
+# Removing node labels:
+tree_birds$node.label<-NULL
+tree_birds <- di2multi(tree_birds)
+
+body_birds_miss <- miss.phylo.d(traits_birds[,-1], tree_birds, binvar = BodyMass.Value)
+actv_birds_miss <- miss.phylo.d(traits_birds[,-1], tree_birds, binvar = Nocturnal)
+habitat_birds_miss <- miss.phylo.d(traits_birds[,-1], tree_birds, binvar =  ForStrat.watbelowsurf)
+
+plot(body_birds_miss, main='Body mass')
+plot(actv_birds_miss, main='Circadian activity')
+plot(habitat_birds_miss, main='Habitat')
+
+
+miss.phylo.d
+
+# mammals
+traits_mammals <- traits_mammals %>% rename(body_mass = body_mass_g.avg.)
+
+body_mammals_miss <- miss.phylo.d(traits_mammals[,-1], tree_mammals, binvar = body_mass)
+actv_mammals_miss <- miss.phylo.d(traits_mammals[,-1], tree_mammals, binvar = diurnal)
+habitat_mammals_miss <- miss.phylo.d(traits_mammals[,-1], tree_mammals, binvar = fossorial)
+
+plot(body_mammals_miss, main='Body size')
+plot(actv_mammals_miss, main='Circadian activity')
+plot(habitat_mammals_miss, main='Habitat')
+```
 
 ##### 3.0. Save new datasets for Structural Equation Model (SEM)
+
 Here we will consider using richness and diversification rate data that have the same number of species that were used to calculate the traits (here called harmonized data). Our sensitivity analysis showed a high correlation between these data, so there is no influence on subsequent analyses. On the other hand, the assemblage age metric uses complete datasets (here called full), since we found discrepant and uncorrelated values in our sensitivity analysis, which could change our results.
 
 ```{r}

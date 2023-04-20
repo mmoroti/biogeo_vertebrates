@@ -1,4 +1,5 @@
 *teste_herodotools.R
+*sensiphy.R
 /abiotic_data
 *.Rproj.user
 /list_of_species
@@ -11,3 +12,4 @@
 *gridmacro.shp
 *gridmacro.dbf
 *gridmacro.cpg
+*RData

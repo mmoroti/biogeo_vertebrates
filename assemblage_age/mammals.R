@@ -337,7 +337,7 @@ dr_mammals_map <- sites_new_mammals %>%
 
 map_mammals_complete <- mammals_richness + map_joint_evoregion_mammals +
   map_age_mammals + dr_mammals_map
-
+write.tree
 # Save dataset
 dr_age_mammals <- cbind(coords_id,sites_new_mammals[,4:6])
 write.table(dr_age_mammals,"assemblage_age/metrics_mammals_full.txt")

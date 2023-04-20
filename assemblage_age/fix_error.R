@@ -14,20 +14,21 @@
 # Packages/updates to source
 library(ape)
 library(BioGeoBEARS)
-sourceall("/drives/Dropbox/_njm/__packages/BioGeoBEARS_setup/")
+library(phytools)
+#sourceall("/drives/Dropbox/_njm/__packages/BioGeoBEARS_setup/")
 # (you could alternatively use the source() commands in 
 #  the example script, at:
 #  http://phylo.wikidot.com/biogeobears#script
 # )
 
 # Set your working directory
-wd = "/drives/GDrive/__GDrive_projects/2016-02-09_Robin_Beck/_v4/_run6_BDSS_M0_7areas/"
-setwd(wd)
+#wd = "/drives/GDrive/__GDrive_projects/2016-02-09_Robin_Beck/_v4/_run6_BDSS_M0_7areas/"
+#setwd(wd)
 
 # Set your tree file and geography file names
 #trfn = "tree5.newick"
-trfn = "assemblage_age/mammals_biogeo_full.new"
-geogfn = "assemblage_age/geo_area_mammals_full.data"
+getwd()
+trfn = "02_metrics/full_data/amphibia_fully.new"
 
 #######################################################
 # Load the tree
@@ -70,9 +71,9 @@ if ( (length(nexTF) == 1) && (nexTF == TRUE) )
   tr = try_result
 } # END if (nexTF == TRUE)
 
-plot(tr)
-title("Newick tree")
-axisPhylo()
+#plot(tr)
+#title("Newick tree")
+#axisPhylo()
 
 # Is the tree dichotomous?  And rooted?
 if (is.binary.tree(tr) == FALSE)
@@ -174,6 +175,7 @@ sum_TFs = (external_TF + edges_BL0_TF)
 sum_TFs[is.na(sum_TFs)] = 0
 external_BL0_TF = (sum_TFs == 2)
 sum(external_BL0_TF)
+tr <- force.ultrametric(tr)
 
 tip_brlen = 0.0000001
 if (sum(external_BL0_TF) > 0)
@@ -199,21 +201,8 @@ if (sum(external_BL0_TF) > 0)
   write.tree(tr, file=new_trfn)
   cat("...saved to ", new_trfn, "\n", sep="")
 } # END if (sum(external_BL0_TF) > 0)
+getwd()
+dir()
 
-#######################################################
-# Try loading the geography file
-#######################################################
-# Look at your geographic range data:
-tipranges = getranges_from_LagrangePHYLIP(lgdata_fn=geogfn)
-tipranges
+###
 
-#######################################################
-# Final check
-#######################################################
-BioGeoBEARS_run_object = define_BioGeoBEARS_run()
-
-# Specify tree file and geography file
-BioGeoBEARS_run_object$trfn = trfn
-BioGeoBEARS_run_object$geogfn = geogfn
-BioGeoBEARS_run_object = readfiles_BioGeoBEARS_run(BioGeoBEARS_run_object)
-check_BioGeoBEARS_run(BioGeoBEARS_run_object)
