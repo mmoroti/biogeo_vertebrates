@@ -27,7 +27,8 @@ library(exactextractr) # raster data extract cv
 ###### 0.1.1. Grid of Atlantic forest
 
 ```{r}
-grid_ma <- readOGR("gridmacro.shp") #432 grids
+getwd()
+grid_ma <- readOGR("../Shapefiles/gridmacro.shp") #432 grids
 grid_center <- coordinates(grid_ma) # obtain center of grid
 grid_ma <- st_as_sf(grid_ma) # convert to sf object
 grid_ma <- st_set_crs(grid_ma, 4326) # convert to WGS84
@@ -49,8 +50,18 @@ Bio15 <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOB
 Bio17 <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio17_1981-2010_V.2.1.tif") #Precipitation of Driest Quarter
 
 # Primary Production
-# Numerical Terradynamic Simulation Group 
+# CHELSA
 prod <- raster("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_npp_1981-2010_V.2.1.tif")
+
+# NASA 
+# https://neo.gsfc.nasa.gov/view.php?datasetId=MOD17A3H_Y_NPP
+prod_nasa <- raster("abiotic_data/MOD17A3H_Y_NPP_2022-01-01_rgb_3600x1800.TIFF")
+
+#  NPP past from Beyer et al., 2020
+file <- "../Shapefiles/LateQuaternary_Environment.nc"
+tmp_raster <- brick(file, varname="npp")
+# only -120.000 years
+npp_past_raster <- subset(tmp_raster, "X.120000")
 
 #Topography
 #EarthEnv (https://www.earthenv.org/)
@@ -668,14 +679,95 @@ clima
 ###### 1.2.2 Productivity
 
 ```{r}
-# npp 
+# from CHELSA 
 data_prod <- raster::extract(prod,             
                             grid_center,   
                             fun=mean,     
                             df=TRUE)
 
-data_abiotic <- cbind(clima , data_prod)
-data_abiotic <- data_abiotic[,-11]
+# from past -120.000
+data_prod_past <- raster::extract(npp_past_raster,             
+                            grid_center,   
+                            fun=mean,     
+                            df=TRUE)
+
+# from nasa 
+data_prod_nasa <- raster::extract(prod_nasa,             
+                            grid_center,   
+                            fun=mean,     
+                            df=TRUE)
+
+data_abiotic <- data.frame(clima , data_prod,
+                           data_prod_past, data_prod_nasa) %>%
+  rename(chelsa = "CHELSA_npp_1981.2010_V.2.1",
+         past = "X.120000",
+         nasa = "MOD17A3H_Y_NPP_2022.01.01_rgb_3600x1800") %>%
+  select(-ID, -ID.1, -ID.2)
+```
+
+```{r, exploratory}
+# check format
+class(data_abiotic$past)
+class(data_abiotic$nasa)
+class(data_abiotic$chelsa)
+
+cor.test(data_abiotic$past,
+         data_abiotic$chelsa, method="pearson")
+
+cor.test(data_abiotic$nasa,
+         data_abiotic$chelsa, method="pearson")
+
+cor.test(data_abiotic$past,
+         data_abiotic$nasa, method="pearson")
+
+# para o plot
+cor_past_chelsa <- ggplot(data_abiotic, aes(x = scale(past), 
+                  y = scale(chelsa))) +
+            geom_point() +
+            geom_smooth(method = "lm") +
+            labs(x = "Past", y = "CHELSA")
+
+cor_past_nasa <- ggplot(data_abiotic, aes(x = scale(past), 
+                  y = scale(nasa))) +
+            geom_point() +
+            geom_smooth(method = "lm") +
+            labs(x = "Past", y = "NASA")
+
+cor_chelsa_nasa <- ggplot(data_abiotic, aes(x = scale(chelsa), 
+                  y = scale(nasa))) +
+            geom_point() +
+            geom_smooth(method = "lm") +
+            labs(x = "CHELSA", y = "NASA")
+
+gridExtra::grid.arrange(cor_past_chelsa, cor_past_nasa, cor_chelsa_nasa, ncol = 3)
+```
+
+```{r}
+data_analysis_map <- left_join(grid_ma, data_abiotic, by = "id")
+
+data_analysis_map <- biscale::bi_class(data_analysis_map,
+                          x = nasa,
+                          y = chelsa,
+                          style = "quantile",
+                          dim = 3)
+
+map <- ggplot() +
+  geom_sf(data = data_analysis_map, mapping = aes(fill = bi_class), 
+          color = "white", size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = "GrPink", dim = 3) +
+  bi_theme()
+
+legend <- bi_legend(pal = "GrPink",
+                    dim = 3,
+                    xlab = "Higher NASA",
+                    ylab = "Higher CHELSA",
+                    size = 8)
+
+finalPlot <- ggdraw() +
+  draw_plot(map) +
+  draw_plot(legend, 0.2, .65, 0.2, 0.2)
+
+finalPlot
 ```
 
 ###### 1.2.3 Topography
@@ -685,8 +777,9 @@ cv <- exact_extract(topography,grid_ma, "coefficient_of_variation")
 cbind(id = grid_ma$id, cv)
 
 # join with others abiotic data
-data_abiotic_all <- cbind(data_abiotic, cv)
-data_abiotic_all <- data_abiotic_all[,-12]
+data_abiotic_all <- cbind(data_abiotic, cv) %>%
+  rename(elevation = cv)
+
 ```
 
 ##### 1.3. Save datasets
