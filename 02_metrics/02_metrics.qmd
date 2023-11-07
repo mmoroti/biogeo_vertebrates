@@ -26,6 +26,7 @@ library(rgdal) #spatial data
 library(sf) # spatial data
 library(SpatialPack) #spatial correlation analysis
 library(ggtree) # plot tree with traits
+library(gawdis)
 ```
 
 ##### 0.1. Loading files
@@ -455,7 +456,35 @@ head(bodysize)
 nrow(bodysize)
 ```
 
-```{r, fdis}
+```{r, fdis with gawdis}
+# Matriz de distancia usando função gawdis de Bello et al., 2021
+anura_traits <- data.frame(dist_ativ, dist_habitat, as.data.frame(bodysize))
+
+gaw.anura <-gawdis(anura_traits,
+                   w.type="analytic",
+                   groups =c(1, 1, 1,
+                             2, 2, 2, 2,
+                             3))
+
+cat("traits wieghts", attr(gaw.anura,"weights")) 
+# trait1, trait2 e trait3
+# circadian activity, habitat, body size
+
+is.euclid(gaw.anura) # FALSE
+is.euclid(sqrt(gaw.anura)) # TRUE
+
+sum(as.matrix(is.na(gaw.anura)))#no NAs 
+sum(gaw.anura == 0) # 64 comunidades com zero
+
+####
+# Wed Mar 31 16:11:06 2021 ------------------------------
+# Calculating Functional Diversity metrics
+disp.func.amphibia <- fdisp(gaw.anura, as.matrix(harm_list_amphibia))
+
+FDis_metric_amphibia <- data.frame(id=harm_aa_amphibia$id, FDis=disp.func.amphibia$FDis)
+```
+
+```{r, fdis with ade4}
 #Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
 trait.dist <- dist.ktab(ktab.list.df(list(dist_ativ, dist_habitat, as.data.frame(bodysize))), type = c("B","B","Q"), scan=TRUE)
 #10 = S2 coefficient of GOWER & LEGENDRE for multi-choice traits
@@ -467,13 +496,43 @@ sum(as.matrix(is.na(trait.dist)))#no NAs :)
 ####
 # Wed Mar 31 16:11:06 2021 ------------------------------
 # Calculating Functional Diversity metrics
-disp.func.amphibia <- fdisp(trait.dist, as.matrix(harm_list_amphibia))
+disp.func.amphibia_antigo <- fdisp(trait.dist, as.matrix(harm_list_amphibia))
 
-FDis_metric_amphibia <- data.frame(id=harm_aa_amphibia$id, FDis=disp.func.amphibia$FDis)
+FDis_metric_amphibia_antigo <- data.frame(id=harm_aa_amphibia$id, FDis=disp.func.amphibia_antigo$FDis)
+```
+
+```{r, exploratory}
+dados_traits <- inner_join(FDis_metric_amphibia,
+           FDis_metric_amphibia_antigo,
+           by="id") %>%
+  rename(gawdis_fdis = FDis.x,
+         gower_ade4 = FDis.y)
+  
+head(dados_traits)
+
+ggplot(dados_traits, aes(x = scale(gawdis_fdis), 
+                  y = scale(gower_ade4))) +
+            geom_point() +
+            geom_smooth(method = "lm") +
+            labs(x = "gawdis_fdis", y = "gower_ade4")
+
+ggplot(dados_traits, aes(x = gawdis_fdis, 
+                  y = gower_ade4)) +
+            geom_point() +
+            geom_smooth(method = "lm") +
+            labs(x = "gawdis_fdis", y = "gower_ade4")
+
+dados_traits_rich <- cbind(dados_traits,
+                           rich = harm_rich_amphibia$richness)
+
+ggplot(dados_traits_rich, aes(x = scale(rich), 
+                  y = scale(gawdis_fdis))) +
+            geom_point() +
+            geom_smooth(method = "lm") +
+            labs(x = "richness", y = "gawdis_fdis")
 ```
 
 ###### 1.3.2. Squamata
-
 ```{r, preparing traits}
 # Copy dataset 
 # adjustements in number
@@ -519,7 +578,39 @@ bodysize.reptile <- data.frame(BodySize=log(short_squamata_traits$svl_mm))
 rownames(bodysize.reptile) <- short_squamata_traits$sp
 ```
 
-```{r, fdis}
+```{r, fdis with gawdis}
+# Matriz de distancia usando função gawdis de Bello et al., 2021
+squamata_traits <- data.frame(dist_ativ_reptile,
+                              dist_habitat_reptile,
+                              as.data.frame(bodysize.reptile))
+
+gaw.squamata <-gawdis(squamata_traits,
+                   w.type="analytic",
+                   groups =c(1, 1,
+                             2, 2, 2, 2,
+                             3))
+
+cat("traits wieghts", attr(gaw.squamata,"weights")) 
+# trait1, trait2 e trait3
+# circadian activity, habitat, body size
+
+is.euclid(gaw.squamata) # FALSE
+is.euclid(sqrt(gaw.squamata)) # TRUE
+
+sum(as.matrix(is.na(gaw.squamata)))#no NAs 
+sum(gaw.squamata == 0) # 6 comunidades com zero
+
+####
+# Wed Mar 31 16:11:06 2021 ------------------------------
+# Calculating Functional Diversity metrics
+disp.func.reptile <- fdisp(gaw.squamata, as.matrix(harm_list_squamata))
+
+FDis_metric_reptiles <- data.frame(id=harm_aa_squamata$id,
+                                   FDis=disp.func.reptile$FDis)
+
+```
+
+```{r, fdis with ade4}
 #Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
 trait.dist.reptile <- dist.ktab(ktab.list.df(list(dist_ativ_reptile, dist_habitat_reptile, as.data.frame(bodysize.reptile))), type = c("B","B","Q"), scan=TRUE)
 #10 = S2 coefficient of GOWER & LEGENDRE for multi-choice traits
@@ -528,9 +619,13 @@ is.euclid(trait.dist.reptile)#True!
 sum(as.matrix(is.na(trait.dist.reptile)))#no NAs :)
 
 #Calculando FDisp
-disp.func.reptile <- fdisp(trait.dist.reptile, as.matrix(harm_list_squamata))
+disp.func.reptile_antigo <- fdisp(trait.dist.reptile, as.matrix(harm_list_squamata))
 
-FDis_metric_reptiles <- data.frame(id=harm_aa_squamata$id, FDis=disp.func.reptile$FDis)
+FDis_metric_reptiles_antigo <- data.frame(
+  id=harm_aa_squamata$id,
+  FDis=disp.func.reptile_antigo$FDis
+  )
+
 ```
 
 ###### 1.3.3. Birds
@@ -570,7 +665,41 @@ atividade_bird<- as.tibble(atividade_bird)
 atividade_bird <- column_to_rownames(as.data.frame(atividade_bird), var = "sp")
 ```
 
-```{r, fdis}
+```{r, fdis with gawdis}
+# Matriz de distancia usando função gawdis de Bello et al., 2021
+birds_traits <- data.frame(dist_habitat_birds,
+                           atividade_bird,
+                           bodysize.birds)
+
+gaw.birds <-gawdis(birds_traits %>% select(-PelagicSpecialist),
+                   w.type="analytic",
+                   groups = c(1,1,1,1,1,1,1,
+                              2,
+                              3),
+                              fuzzy= c(1))
+
+cat("traits wieghts", attr(gaw.birds,"weights")) 
+
+# trait1, trait2 e trait3
+# circadian activity, habitat, body size
+
+is.euclid(gaw.birds) # FALSE
+is.euclid(sqrt(gaw.birds)) # TRUE
+
+sum(as.matrix(is.na(gaw.birds)))#no NAs 
+sum(gaw.birds == 0) # 6 comunidades com zero
+
+####
+# Wed Mar 31 16:11:06 2021 ------------------------------
+# Calculating Functional Diversity metrics
+disp.func.birds <- fdisp(gaw.birds, as.matrix(harm_list_birds))
+
+FDis_metric_birds <- data.frame(id=full_aa_amphibia$id,
+                                   FDis=disp.func.birds$FDis)
+hist(FDis_metric_birds$FDis)
+```
+
+```{r, fdis with ade4}
 #Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
 trait.dist.birds <- dist.ktab(ktab.list.df(list(atividade_bird, dist_habitat_birds, as.data.frame(bodysize.birds))), type = c("D","F","Q"), scan=TRUE)
 #2 =Overlap index Manly d2 = 1-Sum(p(i)q(i))/sqrt(Sum(p(i)^2))/sqrt(Sum(q(i)^2))
@@ -580,9 +709,12 @@ is.euclid(trait.dist.birds)#False! =(
 is.euclid(sqrt(trait.dist.birds))#True =)
 sum(as.matrix(is.na(trait.dist.birds)))#no NAs :)
 
-disp.func.birds <- fdisp(sqrt(trait.dist.birds), as.matrix(harm_list_birds)) #tol = 1e-07
+disp.func.birds_antigo <- fdisp(sqrt(trait.dist.birds), as.matrix(harm_list_birds)) #tol = 1e-07
 
-FDis_metric_birds <- data.frame(id=full_aa_amphibia$id, FDis=disp.func.birds$FDis)
+FDis_metric_birds_antigo <- data.frame(id=full_aa_amphibia$id,
+                                FDis=disp.func.birds_antigo$FDis)
+
+hist(FDis_metric_birds_antigo$FDis) 
 ```
 
 ###### 1.3.4. Mammals
@@ -628,6 +760,39 @@ bodysize.mammals <- data.frame(BodySize=log(mammals_phy_traits$body_mass_g.avg.)
 rownames(bodysize.mammals) <- mammals_phy_traits$sp
 dim(bodysize.mammals) #ok
 
+```
+
+```{r, fdis with gawdis}
+# Matriz de distancia usando função gawdis de Bello et al., 2021
+mammals_traits <- data.frame(dist_ativ_mammals, 
+                             dist_habitat_mammals,
+                             bodysize.mammals)
+
+gaw.mammals <-gawdis(mammals_traits,
+                   w.type="analytic",
+                   groups = c(1,1,1,1,
+                              2,2,2,2,
+                              3))
+attr(gaw.mammals,"weights")
+cat("traits wieghts", attr(gaw.mammals,"weights")) 
+# trait1, trait2 e trait3
+# circadian activity, habitat, body size
+
+is.euclid(gaw.mammals) # FALSE
+is.euclid(sqrt(gaw.mammals)) # TRUE
+
+sum(as.matrix(is.na(gaw.mammals)))#no NAs 
+sum(gaw.mammals == 0) # 6 comunidades com zero
+
+#
+disp.func.mammals <- fdisp(gaw.mammals, as.matrix(harm_list_mammals))
+
+FDis_metric_birds <- data.frame(id=full_aa_amphibia$id,
+                                   FDis=disp.func.mammals$FDis)
+hist(disp.func.mammals$FDis)
+```
+
+```{r, fdis with ade4}
 #Now, let's finally calculate the pair-wise trait distance matrix using the Gower distance coefficient as implemented in the package `ade4'
 trait.dist.mammals <- dist.ktab(ktab.list.df(list(dist_ativ_mammals, dist_habitat_mammals, as.data.frame(bodysize.mammals))), type = c("B","B","Q"), scan=TRUE)
 #10 = S2 coefficient of GOWER & LEGENDRE for multi-choice traits
@@ -635,14 +800,59 @@ trait.dist.mammals <- dist.ktab(ktab.list.df(list(dist_ativ_mammals, dist_habita
 
 is.euclid(trait.dist.mammals)#TRUE =)
 sum(as.matrix(is.na(trait.dist.mammals)))#no NAs :)
+
+# fdisp measures the functional dispersion (FDis) of a set of communities, as described by Laliberté and Legendre (2010).
+disp.func.mammals_antigo <- fdisp(trait.dist.mammals, as.matrix(harm_list_mammals)) #tol = 1e-07
+
+FDis_metric_mammals_antigo <- data.frame(id=harm_aa_amphibia$id, 
+                                         FDis=disp.func.mammals_antigo$FDis)
 ```
 
-```{r, fdis}
-# fdisp measures the functional dispersion (FDis) of a set of communities, as described by Laliberté and Legendre (2010).
+###### 1.3.5. Plot trait-space
+```{r, with gawdis}
+# Melhorando visualização 
+pca_anura <- prcomp(gaw.anura, scale. = TRUE)
+anura.pca <- autoplot(pca_anura)
 
-disp.func.mammals <- fdisp(trait.dist.mammals, as.matrix(harm_list_mammals)) #tol = 1e-07
+pca_rep <- prcomp(gaw.squamata, scale. = TRUE)
+squamata.pca <- autoplot(pca_rep)
 
-FDis_metric_mammals <- data.frame(id=harm_aa_amphibia$id, FDis=disp.func.mammals$FDis)
+pca_bird <- prcomp(gaw.birds, scale. = TRUE)
+birds.pca <-autoplot(pca_bird)
+
+pca_mammal <- prcomp(gaw.mammals, scale. = TRUE)
+mammals.pca <- autoplot(pca_mammal)
+
+plot_grid(anura.pca, 
+          squamata.pca, 
+          birds.pca, 
+          mammals.pca, 
+          align = "h", 
+          rel_widths = c(1, 1),
+          labels = "AUTO")
+```
+
+```{r, with ade4}
+# Melhorando visualização 
+pca_anura.ade4 <- prcomp(trait.dist, scale. = TRUE)
+anura.pca.ade4 <- autoplot(pca_anura.ade4)
+
+pca_rep.ade4 <- prcomp(trait.dist.reptile, scale. = TRUE)
+squamata.pca.ade4 <- autoplot(pca_rep.ade4)
+
+pca_bird.ade4 <- prcomp(trait.dist.birds, scale. = TRUE)
+birds.pca.ade4 <-autoplot(pca_bird.ade4)
+
+pca_mammal.ade4 <- prcomp(trait.dist.mammals, scale. = TRUE)
+mammals.pca.ade4 <- autoplot(pca_mammal.ade4)
+
+plot_grid(anura.pca.ade4,
+          squamata.pca.ade4, 
+          birds.pca.ade4,
+          mammals.pca.ade4, 
+          align = "h",
+          rel_widths = c(1, 1),
+          labels = "AUTO")
 ```
 
 ##### 2.0. Sensitivity analysis
@@ -861,6 +1071,7 @@ cor.spatial(mammals_data$full_dr, mammals_data$harm_dr, grid_center) # 0.773 +- 
 cor.spatial(mammals_data$full_rich, mammals_data$harm_rich, grid_center) # 0.838 +- 0.002
 cor.spatial(mammals_data$full_aa, mammals_data$harm_aa, grid_center) # 0.037 +- 0.002
 ```
+
 
 ##### 2.3. Missing traits in phylogeny
 
@@ -1094,6 +1305,7 @@ gheatmap(phy, dados, offset=8, width=0.6,
 ```
 
 ##### 2.4. SensiPhy traits test
+
 ```{r}
 library(sensiPhy)
 library(caper)
@@ -1147,6 +1359,7 @@ plot(body_mammals_miss, main='Body size')
 plot(actv_mammals_miss, main='Circadian activity')
 plot(habitat_mammals_miss, main='Habitat')
 ```
+
 
 ##### 3.0. Save new datasets for Structural Equation Model (SEM)
 
