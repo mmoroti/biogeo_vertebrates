@@ -604,7 +604,7 @@ sum(gaw.squamata == 0) # 6 comunidades com zero
 # Wed Mar 31 16:11:06 2021 ------------------------------
 # Calculating Functional Diversity metrics
 disp.func.reptile <- fdisp(gaw.squamata, as.matrix(harm_list_squamata))
-
+?fdisp
 FDis_metric_reptiles <- data.frame(id=harm_aa_squamata$id,
                                    FDis=disp.func.reptile$FDis)
 
@@ -787,7 +787,7 @@ sum(gaw.mammals == 0) # 6 comunidades com zero
 #
 disp.func.mammals <- fdisp(gaw.mammals, as.matrix(harm_list_mammals))
 
-FDis_metric_birds <- data.frame(id=full_aa_amphibia$id,
+FDis_metric_mammals <- data.frame(id=full_aa_amphibia$id,
                                    FDis=disp.func.mammals$FDis)
 hist(disp.func.mammals$FDis)
 ```
@@ -1378,11 +1378,23 @@ mammals_data <- as.data.frame(cbind(id=grid_ma$id,rich_mammals=richness_mammals$
 full_dataset <- left_join(amphibia_data, squamata_data, by="id")
 full_dataset <- left_join(full_dataset, birds_data, by="id")
 full_dataset <- left_join(full_dataset, mammals_data, by="id")
-  
+
+# Wed Nov  8 13:15:15 2023 ------------------------------
+# adjust metrics of fdis using gawdis function
+# join dataset complete with new values of fdis
+full_dataset <- left_join(full_data, FDis_metric_amphibia, by="id") %>%
+  rename(fdis_amp_gaw = FDis)
+
+full_dataset <- left_join(full_dataset, FDis_metric_reptiles, by="id") %>%
+  rename(fdis_rep_gaw = FDis)
+
+full_dataset <- left_join(full_dataset, FDis_metric_birds, by="id") %>%
+  rename(fdis_birds_gaw = FDis)
+
+full_dataset <- left_join(full_dataset, FDis_metric_mammals, by="id") %>%
+  rename(fdis_mammals_gaw = FDis)
+
 ### save dataset  
-setwd("E:/repos/biogeo_vertebrates-main")
-write.table(full_dataset, "03_sem/dataset_metrics.txt")
-
-View(full_dataset)
-
+#setwd("E:/repos/biogeo_vertebrates-main")
+write.table(full_dataset, "../03_sem/dataset_metrics.txt")
 ```
