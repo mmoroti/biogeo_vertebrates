@@ -196,7 +196,6 @@ spaceLin <- corLin(form=~ V2+V1, nugget=T)
 spaceRatio <- corRatio(form=~ V2+V1, nugget=T)
 spaceSpher <- corSpher(form= ~V2+V1, nugget=T)
 ```
-
 ###### 2.2.0 Transformation of data
 
 ```{r}
@@ -252,7 +251,7 @@ gls.amp.4.ratio <- gls(dr_amp ~ aa_amp + climate_amp + elevation + nasa,
                        data = sem_dataset_trans, correlation = spaceRatio)
 
 #spaceSpher
-gls.amp.1.spher <- gls(fdis_amp_gaw ~ rich_amp + climate_amp + elevation + nasa + dr_amp+ aa_amp,
+gls.amp.1.spher <- gls(fdis_amp_gaw ~ rich_amp + climate_amp + elevation + nasa + dr_amp + aa_amp,
                        data=sem_dataset_trans, correlation = spaceSpher)
 gls.amp.2.spher <- gls(rich_amp ~ climate_amp + elevation + nasa + dr_amp,
                        data=sem_dataset_trans, correlation = spaceSpher)
@@ -964,7 +963,7 @@ hist(sem_dataset$dr_mammals,
 ```{r, maps with histogram}
 # maps
 grid_data <- full_join(grid_ma, sem_dataset,  by="id")
-
+grid_data <- full_join(grid_ma, sem_dataset,  by="id")
 # Function to draw maps with histogram
 plot_map_hist <- function(df, variable, titulo, escala) {
   
@@ -1028,6 +1027,18 @@ mammals_aa <- plot_map_hist(grid_data, grid_data$aa_mammals, "Assemblage age", e
 
 plot_grid(anura_aa, squamata_aa, birds_aa, mammals_aa,
           align = "h", rel_widths = c(1, 1),labels = "AUTO")
+
+# equilibrium variables plots
+anura_climate <- plot_map_hist(grid_data, grid_data$climate_amp, "Climate", escala = 10)
+squamata_climate <- plot_map_hist(grid_data, grid_data$climate_squa, "Climate", escala = 10) 
+birds_climate <- plot_map_hist(grid_data, grid_data$climate_birds, "Climate", escala = 10) 
+mammals_climate <- plot_map_hist(grid_data, grid_data$climate_mammals, "Climate", escala = 10) 
+
+npp_map <- plot_map_hist(grid_data, grid_data$nasa, "NPP MODIS", escala = 10)
+topography_map <- plot_map_hist(grid_data, grid_data$elevation, "Topography (SD)", escala = 0.05) 
+
+plot_grid(anura_climate, squamata_climate, birds_climate, mammals_climate,
+          align = "h", rel_widths = c(1, 1),labels = "AUTO")
 ```
 
 Scatter plot the FDis against species richness for each group and fit a loess curve, it's simple to do this in ggplot with stat_smooth
@@ -1065,3 +1076,273 @@ mam.rich.fdisp <- ggplot(sem_dataset, aes(x=rich_mammals, y=fdis_mammals_gaw)) +
 plot_grid(anura.rich.fdisp, rep.rich.fdisp, bird.rich.fdisp, mam.rich.fdisp, align = "h", rel_widths = c(1, 1),labels = "AUTO")
 ```
 
+##### 4.0. SEM sensibility analysis
+
+##### 4.1. GLS
+###### 4.1.1. Amphibia
+Models correcting spatial autocorrelation 
+```{r}
+# Amphibia
+#spaceCor
+gls.amp.1.exp_sensitivy <- gls(fdis_amp_gaw ~ climate_amp + elevation + nasa + dr_amp + aa_amp,
+                     data=sem_dataset_trans, correlation = spaceExp)
+gls.amp.2.exp_sensitivy <- gls(rich_amp ~ climate_amp + elevation + nasa + dr_amp + aa_amp,
+                     data=sem_dataset_trans, correlation =  corExp(c(1000, 0.5), form =~ V2+V1, nugget=T)) 
+gls.amp.3.exp_sensitivy <- gls(aa_amp ~ climate_amp + elevation + nasa,
+                     data = sem_dataset_trans, correlation = spaceExp)
+gls.amp.4.exp_sensitivy <- gls(dr_amp ~ aa_amp + climate_amp + elevation + nasa,
+                     data = sem_dataset_trans, correlation = spaceExp)
+
+#spaceGaus
+gls.amp.1.gaus_sensitivy <- gls(fdis_amp_gaw ~ climate_amp + elevation + nasa + dr_amp + aa_amp,
+                      data=sem_dataset_trans, correlation = spaceGaus)
+gls.amp.2.gaus_sensitivy <- gls(rich_amp ~ climate_amp + elevation + nasa + dr_amp + aa_amp, 
+                      data=sem_dataset_trans, correlation = spaceGaus)
+gls.amp.3.gaus_sensitivy <- gls(aa_amp ~ climate_amp + elevation + nasa,
+                      data = sem_dataset_trans, correlation = spaceGaus)
+gls.amp.4.gaus_sensitivy <- gls(dr_amp ~ aa_amp + climate_amp + elevation + nasa,
+                      data = sem_dataset_trans, correlation = spaceGaus)
+
+#spaceLin
+gls.amp.1.lin_sensitivy <- gls(fdis_amp_gaw ~ climate_amp + elevation + nasa + dr_amp + aa_amp,
+                     data=sem_dataset_trans,correlation = spaceLin)
+gls.amp.2.lin_sensitivy <- gls(rich_amp ~ climate_amp + elevation + nasa + dr_amp + aa_amp,
+                     data=sem_dataset_trans, correlation = corExp(c(1000, 0.5), form =~ V2+V1, nugget=T))
+gls.amp.3.lin_sensitivy <- gls(aa_amp ~ climate_amp + elevation + nasa,
+                     data = sem_dataset_trans, correlation = spaceLin)
+gls.amp.4.lin_sensitivy <- gls(dr_amp ~ aa_amp + climate_amp + elevation + nasa,
+                     data = sem_dataset_trans, correlation = spaceLin)
+
+#spaceratio 
+gls.amp.1.ratio_sensitivy <- gls(fdis_amp_gaw ~ climate_amp + elevation + nasa + dr_amp + aa_amp,
+                       data=sem_dataset_trans, correlation = spaceRatio)
+gls.amp.2.ratio_sensitivy <- gls(rich_amp ~ climate_amp + elevation + nasa + dr_amp + aa_amp,
+                       data=sem_dataset_trans, correlation = spaceRatio)
+gls.amp.3.ratio_sensitivy <- gls(aa_amp ~ climate_amp + elevation + nasa,
+                       data = sem_dataset_trans, correlation = spaceRatio)
+gls.amp.4.ratio_sensitivy <- gls(dr_amp ~ aa_amp + climate_amp + elevation + nasa,
+                       data = sem_dataset_trans, correlation = spaceRatio)
+
+#spaceSpher
+gls.amp.1.spher_sensitivy <- gls(fdis_amp_gaw ~ climate_amp + elevation + nasa + dr_amp + aa_amp,
+                       data=sem_dataset_trans, correlation = spaceSpher)
+gls.amp.2.spher_sensitivy <- gls(rich_amp ~ climate_amp + elevation + nasa + dr_amp + aa_amp,
+                       data=sem_dataset_trans, correlation = spaceSpher)
+gls.amp.3.spher_sensitivy <- gls(aa_amp ~ climate_amp + elevation + nasa,
+                       data = sem_dataset_trans, correlation = spaceSpher)
+gls.amp.4.spher_sensitivy <- gls(dr_amp ~ aa_amp + climate_amp + elevation + nasa,
+                       data = sem_dataset_trans, correlation = spaceSpher)
+```
+
+###### 4.1.2. Squamata
+
+```{r}
+# spaceExp
+gls.rep.1.exp_sensi <- gls(fdis_rep_gaw ~ climate_squa + elevation + nasa + dr_squa + aa_squa,
+                     data=sem_dataset_trans, correlation= corExp(c(500, 0.1), form =~ V2+V1, nugget=T))
+
+gls.rep.2.exp_sensi <- gls(rich_squa ~  climate_squa + elevation + nasa + dr_squa + aa_squa,
+                     data=sem_dataset_trans,  correlation= corExp(c(1000, 0.1), form =~ V2+V1, nugget=T))
+
+gls.rep.3.exp_sensi <- gls(aa_squa ~ climate_squa + elevation + nasa,
+                     data = sem_dataset_trans, correlation = corExp(c(500, 0.1), form =~ V2+V1, nugget=T))
+
+gls.rep.4.exp_sensi <- gls(dr_squa ~ climate_squa + elevation + nasa + aa_squa,
+                     data = sem_dataset_trans, correlation= spaceExp)
+
+# spaceGaus
+gls.rep.1.gaus_sensi <- gls(fdis_rep_gaw  ~ climate_squa + elevation + nasa + dr_squa + aa_squa, 
+                      data=sem_dataset_trans, correlation = spaceGaus)
+
+gls.rep.2.gaus_sensi <- gls(rich_squa ~ climate_squa + elevation + nasa + dr_squa + aa_squa, 
+                      data=sem_dataset_trans, correlation = corGaus(c(500, 0.1), form =~ V2+V1, nugget=T))
+
+gls.rep.3.gaus_sensi <- gls(aa_squa ~ climate_squa + elevation + nasa,
+                      data = sem_dataset_trans, correlation = corGaus(c(500, 0.1), form =~ V2+V1, nugget=T))
+
+gls.rep.4.gaus_sensi <- gls(dr_squa ~ climate_squa + elevation + nasa + aa_squa,
+                      data = sem_dataset_trans, correlation = spaceGaus)
+
+# spaceLin
+gls.rep.1.lin_sensi <- gls(fdis_rep_gaw  ~ climate_squa + elevation + nasa + dr_squa + aa_squa,
+                     data=sem_dataset_trans, correlation= corLin(c(1000, 0.5), form =~ V2+V1, nugget=T))
+gls.rep.2.lin_sensi <- gls(rich_squa ~ climate_squa + elevation + nasa  + dr_squa + aa_squa, 
+                     data=sem_dataset_trans, correlation = corLin(c(500, 0.1), form =~ V2+V1, nugget=T))
+gls.rep.3.lin_sensi <- gls(aa_squa ~ climate_squa + elevation + nasa ,
+                     data = sem_dataset_trans, correlation = corLin(c(500, 0.1), form =~ V2+V1, nugget=T))
+gls.rep.4.lin_sensi <- gls(dr_squa ~ climate_squa + elevation + nasa + aa_squa, 
+                     data = sem_dataset_trans, correlation = spaceLin)
+
+# spaceRatio
+gls.rep.1.ratio_sensi <- gls(fdis_rep_gaw  ~ climate_squa + elevation + nasa + dr_squa + aa_squa,
+                       data=sem_dataset_trans, correlation=spaceRatio)
+gls.rep.2.ratio_sensi <- gls(rich_squa ~ climate_squa + elevation + nasa + dr_squa + aa_squa,
+                       data=sem_dataset_trans, correlation = corRatio(c(500, 0.1), form =~ V2+V1, nugget=T))
+gls.rep.3.ratio_sensi <- gls(aa_squa ~ climate_squa + elevation + nasa,
+                       data = sem_dataset_trans, correlation = corRatio(c(500, 0.1), form =~ V2+V1, nugget=T))
+gls.rep.4.ratio_sensi <- gls(dr_squa ~ climate_squa + elevation + nasa + aa_squa,
+                       data = sem_dataset_trans, correlation = spaceRatio)
+
+# spaceSpher
+gls.rep.1.spher_sensi <- gls(fdis_rep_gaw  ~ climate_squa + elevation + nasa + dr_squa + aa_squa,
+                       data=sem_dataset_trans, correlation=spaceSpher)
+gls.rep.2.spher_sensi <- gls(rich_squa ~ climate_squa + elevation + nasa + dr_squa + aa_squa,
+                       data=sem_dataset_trans, correlation = corSpher(c(500, 0.1), form =~ V2+V1, nugget=T))
+gls.rep.3.spher_sensi <- gls(aa_squa ~ climate_squa + elevation + nasa,
+                       data = sem_dataset_trans, correlation = corLin(c(500, 0.1), form =~ V2+V1, nugget=T))
+gls.rep.4.spher_sensi <- gls(dr_squa ~ climate_squa + elevation + nasa + aa_squa, 
+                       data = sem_dataset_trans, correlation = spaceSpher)
+```
+
+###### 4.1.3. Mammals
+
+```{r}
+# spaceExp
+gls.mam.1.exp_sensi <- gls(fdis_mammals_gaw ~ climate_mammals + elevation + nasa + dr_mammals + aa_mammals,
+                     data=sem_dataset_trans, correlation = corExp(c(500, 0.1), form =~ V2+V1, nugget=T))
+
+gls.mam.2.exp_sensi <- gls(rich_mammals ~ climate_mammals + elevation + nasa + dr_mammals + aa_mammals, 
+                     data=sem_dataset_trans, correlation = spaceExp)
+
+gls.mam.3.exp_sensi <- gls(aa_mammals ~ climate_mammals + elevation + nasa,
+                     data = sem_dataset_trans, correlation = spaceExp)
+
+gls.mam.4.exp_sensi <- gls(dr_mammals ~ aa_mammals + climate_mammals + elevation + nasa, 
+                     data = sem_dataset_trans, correlation = corExp(c(100, 0.5), form =~ V2+V1, nugget=T))
+
+# spaceGaus
+gls.mam.1.gaus_sensi <- gls(fdis_mammals_gaw ~ climate_mammals + elevation + nasa + dr_mammals + aa_mammals,
+                      data=sem_dataset_trans, correlation=corGaus(c(500, 0.1), form =~ V2+V1, nugget=T))
+gls.mam.2.gaus_sensi <- gls(rich_mammals ~ climate_mammals + elevation + nasa + dr_mammals + aa_mammals, 
+                      data=sem_dataset_trans, correlation = spaceGaus)
+gls.mam.3.gaus_sensi <- gls(aa_mammals ~ climate_mammals + elevation + nasa,
+                      data = sem_dataset_trans, correlation = spaceGaus)
+gls.mam.4.gaus_sensi <- gls(dr_mammals ~ aa_mammals + climate_mammals + elevation + nasa,
+                      data = sem_dataset_trans, correlation = corGaus(c(500, 0.1), form =~ V2+V1, nugget=T))
+
+# spaceLin
+gls.mam.1.lin_sensi <- gls(fdis_mammals_gaw ~ climate_mammals + elevation + nasa + dr_mammals + aa_mammals,
+                     data=sem_dataset_trans, correlation= corLin(c(100, 0.1), form =~ V2+V1, nugget=T))
+gls.mam.2.lin_sensi <- gls(rich_mammals ~ climate_mammals + elevation + nasa + dr_mammals + aa_mammals, 
+                     data=sem_dataset_trans, correlation = spaceLin)
+gls.mam.3.lin_sensi <- gls(aa_mammals ~ climate_mammals + elevation + nasa,
+                     data = sem_dataset_trans, correlation = spaceLin)
+gls.mam.4.lin_sensi <- gls(dr_mammals ~ aa_mammals + climate_mammals + elevation + nasa,
+                     data = sem_dataset_trans, correlation = corLin(c(200, 0.1), form =~ V2+V1, nugget=T))
+
+# spaceRatio
+gls.mam.1.ratio_sensi <- gls(fdis_mammals_gaw ~ climate_mammals + elevation + nasa + dr_mammals + aa_mammals,
+                       data=sem_dataset_trans, correlation=corRatio(c(100, 0.1), form =~ V2+V1, nugget=T))
+gls.mam.2.ratio_sensi <- gls(rich_mammals ~ climate_mammals + elevation + nasa + dr_mammals + aa_mammals, 
+                       data=sem_dataset_trans, correlation = spaceRatio)
+gls.mam.3.ratio_sensi <- gls(aa_mammals ~ climate_mammals + elevation + nasa,
+                       data = sem_dataset_trans, correlation = spaceRatio)
+gls.mam.4.ratio_sensi <- gls(dr_mammals ~ aa_mammals + climate_mammals + elevation + nasa,
+                       data = sem_dataset_trans, correlation = corRatio(c(200, 0.1), form =~ V2+V1, nugget=T))
+
+# spaceSpher
+gls.mam.1.spher_sensi <- gls(fdis_mammals_gaw ~ climate_mammals + elevation + nasa + dr_mammals + aa_mammals,
+                       data=sem_dataset_trans, correlation=corSpher(c(100, 0.1), form =~ V2+V1, nugget=T))
+gls.mam.2.spher_sensi <- gls(rich_mammals ~ climate_mammals + elevation + nasa + dr_mammals + aa_mammals, 
+                       data=sem_dataset_trans, correlation = spaceSpher)
+gls.mam.3.spher_sensi <- gls(aa_mammals ~ climate_mammals + elevation + nasa,
+                       data = sem_dataset_trans, correlation = spaceSpher)
+gls.mam.4.spher_sensi <- gls(dr_mammals ~ aa_mammals + climate_mammals + elevation + nasa,
+                       data = sem_dataset_trans, correlation = corSpher(c(200, 0.1), form =~ V2+V1, nugget=T))
+```
+
+##### 4.2. Model selection
+Selecting the models with the best fit and diagnosis of the GLS (Predicted vs Residuals) 
+###### 4.2.1. Amphibia
+
+```{r}
+# Anfíbios
+AIC(gls.amp.1.exp_sensitivy, gls.amp.1.gaus_sensitivy, 
+    gls.amp.1.lin_sensitivy, gls.amp.1.ratio_sensitivy, gls.amp.1.spher_sensitivy) %>% 
+  arrange(AIC) #gls.amp.1.exp
+AIC(gls.amp.2.exp_sensitivy, gls.amp.2.gaus_sensitivy, gls.amp.2.ratio_sensitivy,
+    gls.amp.2.spher_sensitivy, gls.amp.2.lin_sensitivy)%>% 
+  arrange(AIC)  # gls.amp.2.ratio   
+AIC(gls.amp.3.exp_sensitivy, gls.amp.3.gaus_sensitivy, gls.amp.3.lin_sensitivy,
+    gls.amp.3.ratio_sensitivy, gls.amp.3.spher_sensitivy)%>% 
+  arrange(AIC)  # gls.amp.3.spher
+AIC(gls.amp.4.exp_sensitivy, gls.amp.4.gaus_sensitivy, gls.amp.4.ratio_sensitivy, 
+    gls.amp.4.spher_sensitivy, gls.amp.4.lin_sensitivy)%>% 
+  arrange(AIC)  # gls.amp.4.spher
+
+#diagnosis
+amp1_sensitivy <- plot(gls.amp.1.exp_sensitivy, main="gls.amp.1.exp_sensitivy")
+amp2_sensitivy <- plot(gls.amp.2.ratio_sensitivy, main="gls.amp.2.ratio_sensitivy")
+amp3_sensitivy <- plot(gls.amp.3.exp_sensitivy, main="gls.amp.3.exp_sensitivy")
+amp4_sensitivy <- plot(gls.amp.4.spher_sensitivy, main="gls.amp.4.spher_sensitivy")
+#plot
+plot_grid(amp1_sensitivy,amp2_sensitivy,amp3_sensitivy,amp4_sensitivy, align = "h", rel_widths = c(1, 1),labels = NULL)
+```
+
+###### 4.2.2. Squamata
+
+```{r}
+AIC(gls.rep.1.exp_sensi, gls.rep.1.gaus_sensi, gls.rep.1.lin_sensi, gls.rep.1.ratio_sensi, gls.rep.1.spher_sensi) %>%
+  arrange(AIC) # gls.rep.1.spher
+AIC(gls.rep.2.exp_sensi, gls.rep.2.ratio_sensi, gls.rep.2.gaus_sensi, gls.rep.2.lin_sensi, gls.rep.2.spher_sensi)  %>%
+  arrange(AIC) # gls.rep.2.spher
+AIC(gls.rep.3.exp_sensi, gls.rep.3.gaus_sensi, gls.rep.3.lin_sensi, gls.rep.3.ratio_sensi, gls.rep.3.spher_sensi) %>%
+  arrange(AIC) #gls.rep.3.ratio
+AIC(gls.rep.4.gaus_sensi, gls.rep.4.lin_sensi, gls.rep.4.ratio_sensi, gls.rep.4.spher_sensi,  gls.rep.4.exp_sensi)  %>%
+  arrange(AIC)#gls.rep.4.exp
+
+#Diagnose GLS répteis
+#rep1 <- plot(gls.rep.1.spher, main="gls.rep.1.spher")
+#rep2 <- plot(gls.rep.2.spher, main="gls.rep.2.spher")
+#rep3 <- plot(gls.rep.3.ratio, main="gls.rep.3.ratio")
+#rep4 <- plot(gls.rep.4.spher, main="gls.rep.4.spher")
+#combinacao
+#plot_grid(rep1,rep2,rep3,rep4, align = "h", rel_widths = c(1, 1),labels = NULL)
+```
+
+###### 4.2.4. Mammals
+```{r}
+# Mamíferos
+AIC(gls.mam.1.exp_sensi, gls.mam.1.gaus_sensi, gls.mam.1.lin_sensi, gls.mam.1.ratio_sensi, gls.mam.1.spher_sensi) %>% 
+  arrange(AIC) #gls.mam.1.spher
+AIC(gls.mam.2.exp_sensi, gls.mam.2.gaus_sensi, gls.mam.2.lin_sensi, gls.mam.2.ratio_sensi, gls.mam.2.spher_sensi) %>% 
+  arrange(AIC) #gls.mam.2.spher
+AIC(gls.mam.3.exp_sensi, gls.mam.3.gaus_sensi, gls.mam.3.lin_sensi, gls.mam.3.ratio_sensi, gls.mam.3.spher_sensi) %>% 
+  arrange(AIC) #gls.mam.3.gaus
+AIC(gls.mam.4.exp_sensi, gls.mam.4.gaus_sensi, gls.mam.4.lin_sensi, gls.mam.4.ratio_sensi, gls.mam.4.spher_sensi) %>% 
+  arrange(AIC) #gls.mam.4.lin
+
+#Diagnose mammals
+#mam1 <- plot(gls.mam.1.spher, main="gls.mam.1.spher")
+#mam2 <- plot(gls.mam.2.spher, main="gls.mam.2.spher")
+#mam3 <- plot(gls.mam.3.gaus, main="gls.mam.3.gaus")
+#mam4 <- plot(gls.mam.4.exp, main="gls.mam.4.exp")
+# combinacao
+#plot_grid(mam1,mam2,mam3,mam4, align = "h", rel_widths = c(1, 1),labels = NULL)
+```
+
+##### 4.3. SEM models
+```{r}
+# amphibia
+anura.psem_sensitivy <- psem(gls.amp.1.exp_sensitivy,
+                             gls.amp.2.ratio_sensitivy,
+                             gls.amp.3.exp_sensitivy,
+                             gls.amp.4.spher_sensitivy)
+summary(anura.psem_sensitivy)
+#resid.anura <- residuals(anura.psem)
+
+#Squamata
+reptilia.psem_sensitivy  <- psem(gls.rep.1.spher_sensi,
+                                 gls.rep.2.spher_sensi,
+                                 gls.rep.3.ratio_sensi,
+                                 gls.rep.4.spher_sensi)
+summary(reptilia.psem_sensitivy)
+
+#Mammals
+mammals.psem_sensitivy <- psem(gls.mam.1.spher_sensi,
+                               gls.mam.2.spher_sensi,
+                               gls.mam.3.gaus_sensi,
+                               gls.mam.4.exp_sensi)
+summary(mammals.psem_sensitivy)
+#resid.mammals <- residuals(mammals.psem)
+```
