@@ -1,6 +1,5 @@
 ---
 title: "02_metrics"
-author: "MatheusMoroti"
 format: html
 editor: visual
 ---

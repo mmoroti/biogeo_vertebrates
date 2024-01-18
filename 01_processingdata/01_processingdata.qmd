@@ -1,6 +1,5 @@
 ---
 title: "01_processing_data"
-author: "MatheusMoroti"
 format: html
 editor: visual
 ---

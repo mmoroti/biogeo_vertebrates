@@ -1,6 +1,5 @@
 ---
 title: "The relative role of equilibrium and non-equilibrium processes in shaping the species richness and functional diversity of terrestrial vertebrates in the Brazilian Atlantic Forest"
-author: "Matheus de Toledo Moroti, Fernando Rodrigues da Silva, Diogo B. Provete"
 date: "16/09/2021"
 output:
   html_document: default
