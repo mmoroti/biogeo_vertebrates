@@ -17,3 +17,4 @@ Here is the folder structure of the project, along with a brief description of e
 
 **NOTE**: The "data_preparation.qmd" file is out of date, to run the analysis flow go through the folders described above.
 
+git add 01_processingdata/01_processingdata.Rmd 02_metrics/02_metrics.qmd 03_sem/03_sem.qmd README.md data_preparation.Rmd
